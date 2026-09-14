@@ -323,15 +323,16 @@ img {
 
 /* Water */
 .water-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+  gap: 6px;
   margin-top: 12px;
 }
 
 .cup {
-  width: 36px;
-  height: 44px;
+  width: 100%;
+  max-width: 36px;
+  height: 42px;
   border: 2px solid var(--light);
   border-radius: 0 0 10px 10px;
   background: var(--white);
