@@ -1,0 +1,17 @@
+{
+  "name": "PepStep",
+  "short_name": "PepStep",
+  "description": "Put a Pep in Your Step — Diary, workouts, and more.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#E8F1F7",
+  "theme_color": "#0A2540",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
