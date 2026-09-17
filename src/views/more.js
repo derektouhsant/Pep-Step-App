@@ -121,7 +121,7 @@ export function renderMore(state, ui, cloud) {
 
     <section class="card">
       <div class="tiny">This app</div>
-      <p class="disclaimer">PepStep here is <strong>Diary + Workouts + More</strong> only. Peptide catalog, logbook, reminders, shop, and regimen tools are intentionally left out of this app.</p>
+      <p class="disclaimer">PepStep here is <strong>Home + Diary + Workouts + More</strong> only. Peptide catalog, logbook, reminders, shop, and regimen tools are intentionally left out of this app.</p>
     </section>
 
     <section class="card">

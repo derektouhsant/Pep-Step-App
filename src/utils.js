@@ -32,6 +32,11 @@ export function addDays(iso, days) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+export function isoFromTs(ts) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 export function formatPrettyDate(iso) {
   const [y, m, d] = iso.split('-').map(Number);
   const date = new Date(y, m - 1, d);
@@ -49,11 +54,32 @@ export function formatPrettyDate(iso) {
   });
 }
 
+export function formatFullDate(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
 export function formatTime(ts) {
   return new Date(ts).toLocaleTimeString(undefined, {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+export function formatWhen(ts) {
+  if (!ts) return '';
+  const iso = isoFromTs(ts);
+  const day = formatPrettyDate(iso);
+  return `${day} · ${formatTime(ts)}`;
+}
+
+export function weekdayLetter(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'narrow' });
 }
 
 export function formatDuration(ms) {

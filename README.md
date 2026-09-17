@@ -8,15 +8,16 @@ Family owned · Veteran owned.
 
 ## What this app is
 
-PepStep here is **Diary + Workouts + More** only.
+PepStep here is **Home + Diary + Workouts + More** only.
 
 Peptide catalog, logbook, reminders, shop, and regimen tools are **intentionally excluded**. Those belong in a future separate app.
 
 ## Tabs
 
-1. **Diary** (default) — calorie ring, macro bars, meals, water cups, editable goals, sample foods + custom entries
-2. **Workouts** — start / resume / finish, previous performance, browse ~200 exercises by body part, DIY or AI plan builder, video placeholders
-3. **More** — account / cloud sync, Add to Home Screen tip, brand, [pepstepguide.com](https://pepstepguide.com), [support@pepstepguide.com](mailto:support@pepstepguide.com), not-medical-advice disclaimer
+1. **Home** (default) — today overview of diary nutrition (calories left, macros, water, meal snapshot) and workouts (none / in progress / finished), plus a light 7-day movement glance from existing logs. Cards and CTAs jump into Diary or Workouts.
+2. **Diary** — calorie ring, macro bars, meals, water cups, editable goals, sample foods + custom entries
+3. **Workouts** — start / resume / finish, previous performance, browse ~200 exercises by body part, DIY or AI plan builder, video placeholders
+4. **More** — account / cloud sync, Add to Home Screen tip, brand, [pepstepguide.com](https://pepstepguide.com), [support@pepstepguide.com](mailto:support@pepstepguide.com), not-medical-advice disclaimer
 
 ## Offline vs cloud
 
