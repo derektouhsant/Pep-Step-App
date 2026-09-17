@@ -12,7 +12,7 @@ const CIRC = 2 * Math.PI * 52;
 export function dayTotals(day) {
   const totals = { calories: 0, carbs: 0, protein: 0, fat: 0 };
   for (const meal of MEALS) {
-    for (const item of day.meals[meal.id] || []) {
+    for (const item of day?.meals?.[meal.id] || []) {
       const s = Number(item.servings) || 0;
       totals.calories += item.calories * s;
       totals.carbs += item.carbs * s;
@@ -23,7 +23,13 @@ export function dayTotals(day) {
   return totals;
 }
 
-function macroBar(label, used, goal, tone) {
+export function calorieProgress(totals, goals) {
+  const left = Math.round(goals.calories - totals.calories);
+  const pct = goals.calories > 0 ? Math.min(1, totals.calories / goals.calories) : 0;
+  return { left, pct, offset: CIRC * (1 - pct), circ: CIRC };
+}
+
+export function macroBar(label, used, goal, tone) {
   const pct = goal > 0 ? Math.min(100, (used / goal) * 100) : 0;
   return `
     <div class="macro-row">
@@ -31,6 +37,29 @@ function macroBar(label, used, goal, tone) {
       <div class="macro-track"><div class="macro-fill ${tone}" style="width:${pct}%"></div></div>
       <span class="macro-nums">${Math.round(used)}/${goal}g</span>
     </div>
+  `;
+}
+
+export function renderEnergyBlock(totals, goals) {
+  const { left, offset, circ } = calorieProgress(totals, goals);
+  return `
+      <div class="summary">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
+            <circle class="ring-fg" cx="60" cy="60" r="52" stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"></circle>
+          </svg>
+          <div class="ring-center">
+            <div class="ring-num">${left >= 0 ? left : Math.abs(left)}</div>
+            <div class="ring-sub">${left >= 0 ? 'cals left' : 'over'}</div>
+          </div>
+        </div>
+        <div class="macros">
+          ${macroBar('Carbs', totals.carbs, goals.carbs, '')}
+          ${macroBar('Protein', totals.protein, goals.protein, 'steel')}
+          ${macroBar('Fat', totals.fat, goals.fat, 'light')}
+        </div>
+      </div>
   `;
 }
 
@@ -65,9 +94,6 @@ function mealCard(meal, items) {
 
 export function renderDiary(state, ui, day) {
   const totals = dayTotals(day);
-  const left = Math.round(state.goals.calories - totals.calories);
-  const pct = state.goals.calories > 0 ? Math.min(1, totals.calories / state.goals.calories) : 0;
-  const offset = CIRC * (1 - pct);
   const cups = Math.max(1, Number(state.goals.waterCups) || 8);
   const water = Number(day.water) || 0;
 
@@ -88,23 +114,7 @@ export function renderDiary(state, ui, day) {
         <span class="tiny">Energy</span>
         <button class="text-btn" data-act="open-goals">Edit goals</button>
       </div>
-      <div class="summary">
-        <div class="ring-wrap">
-          <svg viewBox="0 0 120 120" aria-hidden="true">
-            <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
-            <circle class="ring-fg" cx="60" cy="60" r="52" stroke-dasharray="${CIRC.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"></circle>
-          </svg>
-          <div class="ring-center">
-            <div class="ring-num">${left >= 0 ? left : Math.abs(left)}</div>
-            <div class="ring-sub">${left >= 0 ? 'cals left' : 'over'}</div>
-          </div>
-        </div>
-        <div class="macros">
-          ${macroBar('Carbs', totals.carbs, state.goals.carbs, '')}
-          ${macroBar('Protein', totals.protein, state.goals.protein, 'steel')}
-          ${macroBar('Fat', totals.fat, state.goals.fat, 'light')}
-        </div>
-      </div>
+      ${renderEnergyBlock(totals, state.goals)}
     </section>
 
     <section class="card">

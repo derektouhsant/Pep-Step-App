@@ -3,7 +3,8 @@ import { EXERCISES, BODY_PARTS, getExercise, exercisesByPart, isCardio } from '.
 import { loadState, saveState, getDay, emptyDay, defaultState, clearLocalState } from './storage.js';
 import { esc, uid, todayISO, addDays, round1, num } from './utils.js';
 import { icons } from './icons.js';
-import { renderDiary, MEALS } from './views/diary.js';
+import { renderDiary, MEALS, dayTotals, calorieProgress } from './views/diary.js';
+import { renderHome, firstEmptyMeal } from './views/home.js';
 import { renderWorkouts, missingParts } from './views/workouts.js';
 import { renderMore, renderInstallTip } from './views/more.js';
 import {
@@ -20,7 +21,7 @@ import {
 
 let state = loadState();
 const ui = {
-  tab: 'diary',
+  tab: 'home',
   date: todayISO(),
   workoutView: 'home',
   browsePart: 'chest',
@@ -246,12 +247,15 @@ function labelMeal(id) {
 }
 
 function header() {
+  const { left } = calorieProgress(dayTotals(getDay(state, todayISO())), state.goals);
   const extra =
-    ui.tab === 'diary'
-      ? `<button class="header-chip" data-act="open-goals">${state.goals.calories} cal</button>`
-      : ui.tab === 'workouts' && state.activeWorkout
-        ? `<button class="header-chip" data-act="open-logger">Live</button>`
-        : '';
+    ui.tab === 'home'
+      ? `<button class="header-chip" data-act="go-diary">${left >= 0 ? `${left} left` : `${Math.abs(left)} over`}</button>`
+      : ui.tab === 'diary'
+        ? `<button class="header-chip" data-act="open-goals">${state.goals.calories} cal</button>`
+        : ui.tab === 'workouts' && state.activeWorkout
+          ? `<button class="header-chip" data-act="open-logger">Live</button>`
+          : '';
   return `
     <header class="app-header">
       <div class="brand">
@@ -265,6 +269,7 @@ function header() {
 
 function tabbar() {
   const tabs = [
+    { id: 'home', label: 'Home', icon: icons.home },
     { id: 'diary', label: 'Diary', icon: icons.diary },
     { id: 'workouts', label: 'Workouts', icon: icons.workouts },
     { id: 'more', label: 'More', icon: icons.more },
@@ -274,7 +279,7 @@ function tabbar() {
       ${tabs
         .map(
           (t) => `
-        <button class="tab ${ui.tab === t.id ? 'active' : ''}" data-act="tab" data-tab="${t.id}">
+        <button class="tab ${ui.tab === t.id ? 'active' : ''}" data-act="tab" data-tab="${t.id}" ${ui.tab === t.id ? 'aria-current="page"' : ''}>
           ${t.icon}
           <span>${t.label}</span>
         </button>`
@@ -285,6 +290,7 @@ function tabbar() {
 }
 
 function viewHtml() {
+  if (ui.tab === 'home') return renderHome(state);
   if (ui.tab === 'workouts') return renderWorkouts(state, ui, EXERCISES);
   if (ui.tab === 'more') return renderMore(state, ui, getSyncInfo());
   return renderDiary(state, ui, day());
@@ -477,8 +483,38 @@ function onClick(event) {
     tab() {
       ui.tab = btn.dataset.tab;
       if (ui.tab !== 'workouts') ui.workoutView = ui.workoutView === 'logger' && state.activeWorkout ? 'logger' : ui.workoutView;
-      if (ui.tab === 'diary') {
-        /* stay */
+      render();
+    },
+    'go-diary'() {
+      ui.tab = 'diary';
+      ui.date = todayISO();
+      render();
+    },
+    'go-workouts'() {
+      ui.tab = 'workouts';
+      if (!(state.activeWorkout && ui.workoutView === 'logger')) {
+        ui.workoutView = 'home';
+      }
+      render();
+    },
+    'go-diary-date'() {
+      ui.tab = 'diary';
+      ui.date = btn.dataset.date || todayISO();
+      render();
+    },
+    'home-log-food'() {
+      ui.tab = 'diary';
+      ui.date = todayISO();
+      ui.sheet = { type: 'food', meal: firstEmptyMeal(getDay(state, ui.date)), query: '', servings: 1, food: null };
+      render();
+    },
+    'home-open-meal'() {
+      ui.tab = 'diary';
+      ui.date = todayISO();
+      const meal = btn.dataset.meal;
+      const items = getDay(state, ui.date).meals?.[meal] || [];
+      if (!items.length) {
+        ui.sheet = { type: 'food', meal, query: '', servings: 1, food: null };
       }
       render();
     },
@@ -632,6 +668,7 @@ function onClick(event) {
     },
     'start-workout'() {
       ensureWorkout();
+      ui.tab = 'workouts';
       ui.workoutView = 'logger';
       render();
     },
@@ -761,6 +798,7 @@ function onClick(event) {
       clearLocalState();
       state = defaultState();
       ui.sheet = null;
+      ui.tab = 'home';
       ui.date = todayISO();
       ui.workoutView = 'home';
       toast(getSyncInfo().user ? 'Local and cloud data cleared' : 'Local data cleared');
