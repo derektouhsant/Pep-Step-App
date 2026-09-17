@@ -834,6 +834,12 @@ img {
   color: var(--navy);
 }
 
+.install-banner .text-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 8px 10px;
+}
+
 .install-steps {
   margin: 10px 0 0;
   padding-left: 18px;
