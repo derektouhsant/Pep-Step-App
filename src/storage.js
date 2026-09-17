@@ -8,6 +8,8 @@ const DEFAULT_GOALS = {
   waterCups: 8,
 };
 
+export { DEFAULT_GOALS };
+
 export function defaultState() {
   return {
     goals: { ...DEFAULT_GOALS },
@@ -17,6 +19,7 @@ export function defaultState() {
     workoutHistory: [],
     plans: [],
     lastSets: {},
+    meta: { userId: null, savedAt: 0 },
   };
 }
 
@@ -46,6 +49,7 @@ export function loadState() {
       workoutHistory: parsed.workoutHistory || [],
       plans: parsed.plans || [],
       lastSets: parsed.lastSets || {},
+      meta: { userId: null, savedAt: 0, ...(parsed.meta || {}) },
     };
   } catch {
     return defaultState();
@@ -58,4 +62,8 @@ export function saveState(state) {
 
 export function getDay(state, iso) {
   return state.diary[iso] || emptyDay();
+}
+
+export function clearLocalState() {
+  localStorage.removeItem(KEY);
 }

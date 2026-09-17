@@ -1,11 +1,22 @@
 import { FOODS } from './data/foods.js';
 import { EXERCISES, BODY_PARTS, getExercise, exercisesByPart, isCardio } from './data/exercises.js';
-import { loadState, saveState, getDay, emptyDay } from './storage.js';
+import { loadState, saveState, getDay, emptyDay, defaultState, clearLocalState } from './storage.js';
 import { esc, uid, todayISO, addDays, round1, num } from './utils.js';
 import { icons } from './icons.js';
 import { renderDiary, MEALS } from './views/diary.js';
 import { renderWorkouts, missingParts } from './views/workouts.js';
-import { renderMore } from './views/more.js';
+import { renderMore, renderInstallTip } from './views/more.js';
+import {
+  initCloud,
+  getSyncInfo,
+  schedulePush,
+  sendMagicLink,
+  signOut,
+  dismissA2hs,
+  isStandaloneApp,
+  clearCloudData,
+  syncNow,
+} from './cloud/sync.js';
 
 let state = loadState();
 const ui = {
@@ -18,12 +29,15 @@ const ui = {
   toast: '',
   builder: { name: '', exercises: [], source: 'diy' },
   builderReturn: 'workout',
+  authEmail: '',
 };
 
 let toastTimer = 0;
 
 function persist() {
+  state.meta = { ...(state.meta || {}), savedAt: Date.now() };
   saveState(state);
+  schedulePush();
 }
 
 function day() {
@@ -209,12 +223,17 @@ function finishSheet() {
 }
 
 function resetSheet() {
+  const signedIn = Boolean(getSyncInfo().user);
   return `
     <div class="overlay" data-act="close-sheet">
       <div class="sheet" data-stop>
         <div class="grab"></div>
-        <h3 style="margin:0 0 8px;color:var(--navy)">Clear local data?</h3>
-        <p class="muted">This removes diary entries, goals, workouts, and plans stored in this browser.</p>
+        <h3 style="margin:0 0 8px;color:var(--navy)">Clear ${signedIn ? 'local and cloud' : 'local'} data?</h3>
+        <p class="muted">${
+          signedIn
+            ? 'This removes diary entries, goals, workouts, and plans on this device and in your PepStep account.'
+            : 'This removes diary entries, goals, workouts, and plans stored in this browser.'
+        }</p>
         <button class="primary-btn" data-act="confirm-reset">Clear data</button>
         <button class="text-btn" style="width:100%;margin-top:8px" data-act="close-sheet">Cancel</button>
       </div>
@@ -267,8 +286,14 @@ function tabbar() {
 
 function viewHtml() {
   if (ui.tab === 'workouts') return renderWorkouts(state, ui, EXERCISES);
-  if (ui.tab === 'more') return renderMore();
+  if (ui.tab === 'more') return renderMore(state, ui, getSyncInfo());
   return renderDiary(state, ui, day());
+}
+
+function installBannerHtml() {
+  if (ui.tab === 'more') return '';
+  if (getSyncInfo().a2hsDismissed || isStandaloneApp()) return '';
+  return renderInstallTip({ compact: true });
 }
 
 export function render() {
@@ -276,7 +301,7 @@ export function render() {
   root.innerHTML = `
     <div class="app-frame">
       ${header()}
-      <main class="view">${viewHtml()}</main>
+      <main class="view">${installBannerHtml()}${viewHtml()}</main>
       ${tabbar()}
       ${renderSheet()}
       <div id="toast" class="toast" ${ui.toast ? '' : 'hidden'}>${esc(ui.toast)}</div>
@@ -726,20 +751,61 @@ function onClick(event) {
       ui.sheet = { type: 'confirm-reset' };
       render();
     },
-    'confirm-reset'() {
-      localStorage.removeItem('pepstep:v1');
-      state = loadState();
+    async 'confirm-reset'() {
+      try {
+        if (getSyncInfo().user) await clearCloudData();
+      } catch (err) {
+        toast(err.message || 'Could not clear cloud data');
+        return;
+      }
+      clearLocalState();
+      state = defaultState();
       ui.sheet = null;
       ui.date = todayISO();
       ui.workoutView = 'home';
-      toast('Local data cleared');
+      toast(getSyncInfo().user ? 'Local and cloud data cleared' : 'Local data cleared');
       render();
+    },
+    async 'send-magic-link'() {
+      const email = (val('auth-email') || ui.authEmail || '').trim();
+      ui.authEmail = email;
+      try {
+        toast('Sending link…');
+        await sendMagicLink(email);
+        toast('Check your email for a sign-in link');
+      } catch (err) {
+        toast(err.message || 'Could not send link');
+      }
+    },
+    async 'sign-out'() {
+      try {
+        await signOut();
+        toast('Signed out — data stays on this device');
+        render();
+      } catch (err) {
+        toast(err.message || 'Could not sign out');
+      }
+    },
+    'dismiss-a2hs'() {
+      dismissA2hs();
+      render();
+    },
+    async 'sync-now'() {
+      try {
+        await syncNow();
+        toast(getSyncInfo().status === 'error' ? getSyncInfo().error || 'Sync failed' : 'Synced');
+      } catch (err) {
+        toast(err.message || 'Sync failed');
+      }
     },
   };
 
   if (actions[act]) {
     event.preventDefault();
-    actions[act]();
+    const result = actions[act]();
+    if (result && typeof result.then === 'function') {
+      result.catch((err) => toast(err.message || 'Something went wrong'));
+    }
   }
 }
 
@@ -772,6 +838,10 @@ function onInput(event) {
     ui.builder.name = el.value;
     return;
   }
+  if (act === 'auth-email') {
+    ui.authEmail = el.value;
+    return;
+  }
   if (act === 'set-field') {
     const ex = state.activeWorkout?.exercises[Number(el.dataset.ei)];
     const set = ex?.sets[Number(el.dataset.si)];
@@ -779,6 +849,19 @@ function onInput(event) {
     set[el.dataset.field] = el.value;
     persist();
   }
+}
+
+function onSubmit(event) {
+  const form = event.target;
+  if (!(form instanceof HTMLFormElement)) return;
+  if (!event.target.matches('[data-auth-form]')) return;
+  event.preventDefault();
+  const email = (val('auth-email') || ui.authEmail || '').trim();
+  ui.authEmail = email;
+  toast('Sending link…');
+  sendMagicLink(email)
+    .then(() => toast('Check your email for a sign-in link'))
+    .catch((err) => toast(err.message || 'Could not send link'));
 }
 
 function onKey(event) {
@@ -791,6 +874,15 @@ function onKey(event) {
 export function init() {
   document.addEventListener('click', onClick);
   document.addEventListener('input', onInput);
+  document.addEventListener('submit', onSubmit);
   document.addEventListener('keydown', onKey);
   render();
+  initCloud({
+    getState: () => state,
+    setState(next) {
+      state = next;
+      saveState(state);
+    },
+    onChange: render,
+  });
 }

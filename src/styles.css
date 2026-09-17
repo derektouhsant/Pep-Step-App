@@ -27,6 +27,7 @@ body {
   background: var(--pale);
   color: var(--text);
   font-family: var(--font);
+  overscroll-behavior: none;
 }
 
 body {
@@ -60,7 +61,8 @@ img {
   top: 0;
   z-index: 20;
   min-height: var(--header-h);
-  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) 10px
+    calc(16px + env(safe-area-inset-left, 0px));
   background: var(--navy);
   color: var(--white);
   display: flex;
@@ -169,7 +171,7 @@ img {
 
 .view {
   flex: 1;
-  padding: 16px 16px var(--tab-h);
+  padding: 16px calc(16px + env(safe-area-inset-right, 0px)) var(--tab-h) calc(16px + env(safe-area-inset-left, 0px));
 }
 
 .card {
@@ -652,7 +654,8 @@ img {
   bottom: 0;
   z-index: 30;
   height: var(--tab-h);
-  padding: 8px 8px env(safe-area-inset-bottom, 8px);
+  padding: 8px calc(8px + env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 8px)
+    calc(8px + env(safe-area-inset-left, 0px));
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(12px);
   border-top: 1px solid var(--line);
@@ -777,6 +780,78 @@ img {
   color: #7a3140;
   font-weight: 800;
   font-size: 13px;
+}
+
+.sync-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  background: var(--pale);
+  color: var(--steel);
+  white-space: nowrap;
+}
+
+.sync-pill.ok {
+  background: var(--navy);
+  color: var(--white);
+}
+
+.sync-pill.pending {
+  background: var(--light);
+  color: var(--navy);
+}
+
+.sync-pill.err {
+  background: #f4e4e7;
+  color: #7a3140;
+}
+
+.sync-pill.off {
+  background: var(--pale);
+  color: var(--muted);
+}
+
+.install-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.install-banner p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.install-steps {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.install-steps li + li {
+  margin-top: 6px;
+}
+
+.disclaimer code {
+  font-size: 12px;
+  background: var(--pale);
+  padding: 1px 5px;
+  border-radius: 6px;
+  color: var(--navy);
 }
 
 .back-row {
