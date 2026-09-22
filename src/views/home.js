@@ -9,6 +9,7 @@ import {
   todayISO,
   weekdayLetter,
 } from '../utils.js';
+import { workoutTreadmillLines } from '../data/treadmill.js';
 import { dayTotals, MEALS, renderEnergyBlock } from './diary.js';
 
 function greeting() {
@@ -117,12 +118,15 @@ function mealSnapshot(day) {
 function workoutCard(state, today) {
   const status = todayWorkoutStatus(state, today);
   const last = lastWorkout(state);
+  const cardioLine = last ? workoutTreadmillLines(last).join(' · ') : '';
   const lastLine = last
     ? status.kind === 'progress'
-      ? `Started ${esc(formatWhen(last.startedAt))} · ${(last.exercises || []).length} exercises`
+      ? `Started ${esc(formatWhen(last.startedAt))} · ${(last.exercises || []).length} exercises${
+          cardioLine ? ` · ${esc(cardioLine)}` : ''
+        }`
       : `${esc(last.name || 'Workout')} · ${esc(formatWhen(last.finishedAt || last.startedAt))}${
           last.finishedAt && last.startedAt ? ` · ${esc(formatDuration(last.finishedAt - last.startedAt))}` : ''
-        }`
+        }${cardioLine ? ` · ${esc(cardioLine)}` : ''}`
     : 'No sessions yet. Start whenever you are ready.';
 
   if (status.kind === 'progress') {

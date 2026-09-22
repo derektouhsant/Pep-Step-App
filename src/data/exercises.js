@@ -25,7 +25,7 @@ function parseExercises(raw) {
     .split('\n')
     .filter((line) => line && !line.startsWith('#'))
     .map((line) => {
-      const [bodyPart, name, equipment] = line.split('|');
+      const [bodyPart, name, equipment, log] = line.split('|');
       let id = slug(name);
       const count = (seen.get(id) || 0) + 1;
       seen.set(id, count);
@@ -35,6 +35,7 @@ function parseExercises(raw) {
         name,
         bodyPart,
         equipment: equipment || 'Other',
+        log: log || (bodyPart === 'cardio' ? 'duration' : 'strength'),
         videoPlaceholder: true,
       };
     });
@@ -205,6 +206,7 @@ core|Dragon Flag|Bodyweight
 core|Copenhagen Plank|Bodyweight
 core|Hanging Knee Raise|Bodyweight
 core|Decline Sit-Up|Bodyweight
+cardio|Treadmill|Machine|treadmill
 cardio|Treadmill Run|Machine
 cardio|Treadmill Incline Walk|Machine
 cardio|Outdoor Run|None

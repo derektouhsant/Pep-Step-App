@@ -1,5 +1,7 @@
 import { FOODS } from './data/foods.js';
-import { EXERCISES, BODY_PARTS, getExercise, exercisesByPart, isCardio } from './data/exercises.js';
+import { EXERCISES, BODY_PARTS, getExercise, exercisesByPart } from './data/exercises.js';
+import { formatBout, isTreadmillBlock, splitDuration, treadmillBout } from './data/treadmill.js';
+import { mountWheels } from './wheels.js';
 import { loadState, saveState, getDay, emptyDay, defaultState, clearLocalState } from './storage.js';
 import { esc, uid, todayISO, addDays, round1, num } from './utils.js';
 import { icons } from './icons.js';
@@ -215,7 +217,7 @@ function finishSheet() {
       <div class="sheet" data-stop>
         <div class="grab"></div>
         <h3 style="margin:0 0 8px;color:var(--navy)">Finish workout?</h3>
-        <p class="muted">Completed sets are saved as previous performance for next time.</p>
+        <p class="muted">Checked sets are saved as previous performance. Treadmill keeps incline, speed, and time from the last bout.</p>
         <button class="primary-btn" data-act="confirm-finish">Finish &amp; save</button>
         <button class="text-btn" style="width:100%;margin-top:8px" data-act="close-sheet">Keep going</button>
       </div>
@@ -314,6 +316,7 @@ export function render() {
     </div>
   `;
   restoreFocus();
+  mountWheels(root, commitTreadmillField);
 }
 
 function restoreFocus() {
@@ -351,6 +354,12 @@ function ensureWorkout() {
   return state.activeWorkout;
 }
 
+function setsForExercise(ex, prev) {
+  if (ex.log === 'treadmill') return [treadmillBout(prev)];
+  const template = { weight: prev?.weight ?? '', reps: prev?.reps ?? '', done: false };
+  return [{ ...template }, { ...template }, { ...template }];
+}
+
 function addExerciseToWorkout(exerciseId) {
   const ex = getExercise(exerciseId);
   if (!ex) return;
@@ -363,17 +372,12 @@ function addExerciseToWorkout(exerciseId) {
     return;
   }
   const prev = state.lastSets[ex.id];
-  const cardio = isCardio(ex);
-  const template = {
-    weight: prev?.weight ?? '',
-    reps: prev?.reps ?? '',
-    done: false,
-  };
   w.exercises.push({
     exerciseId: ex.id,
     name: ex.name,
     bodyPart: ex.bodyPart,
-    sets: [{ ...template }, { ...template }, { ...template }],
+    log: ex.log || 'strength',
+    sets: setsForExercise(ex, prev),
   });
   persist();
   ui.tab = 'workouts';
@@ -421,13 +425,15 @@ function startPlan(planId) {
     planId: plan.id,
     startedAt: Date.now(),
     exercises: plan.exercises.map((ex) => {
+      const cat = getExercise(ex.exerciseId);
+      const log = cat?.log || ex.log || (ex.bodyPart === 'cardio' ? 'duration' : 'strength');
       const prev = state.lastSets[ex.exerciseId];
-      const template = { weight: prev?.weight ?? '', reps: prev?.reps ?? '', done: false };
       return {
         exerciseId: ex.exerciseId,
         name: ex.name,
         bodyPart: ex.bodyPart,
-        sets: [{ ...template }, { ...template }, { ...template }],
+        log,
+        sets: setsForExercise({ log }, prev),
       };
     }),
   };
@@ -444,6 +450,22 @@ function finishWorkout() {
   if (!w) return;
   const finished = { ...w, finishedAt: Date.now() };
   for (const ex of w.exercises || []) {
+    if (ex.log === 'treadmill' || isTreadmillBlock(ex)) {
+      const bouts = (ex.sets || []).filter((s) => s && s.durationSec != null);
+      const lastDone = [...bouts].reverse().find((s) => s.done);
+      const bout = lastDone || bouts[bouts.length - 1];
+      if (bout) {
+        state.lastSets[ex.exerciseId] = {
+          kind: 'treadmill',
+          incline: bout.incline,
+          speed: bout.speed,
+          durationSec: bout.durationSec,
+          date: ui.date,
+          at: Date.now(),
+        };
+      }
+      continue;
+    }
     const lastDone = [...(ex.sets || [])].reverse().find((s) => s.done && (s.weight !== '' || s.reps !== ''));
     if (lastDone) {
       state.lastSets[ex.exerciseId] = {
@@ -757,8 +779,12 @@ function onClick(event) {
     },
     'add-set'() {
       const ex = state.activeWorkout.exercises[Number(btn.dataset.ei)];
-      const last = ex.sets[ex.sets.length - 1] || { weight: '', reps: '', done: false };
-      ex.sets.push({ weight: last.weight, reps: last.reps, done: false });
+      if (ex.log === 'treadmill' || isTreadmillBlock(ex)) {
+        ex.sets.push(treadmillBout(ex.sets[ex.sets.length - 1]));
+      } else {
+        const last = ex.sets[ex.sets.length - 1] || { weight: '', reps: '', done: false };
+        ex.sets.push({ weight: last.weight, reps: last.reps, done: false });
+      }
       persist();
       render();
     },
@@ -887,6 +913,30 @@ function onInput(event) {
     set[el.dataset.field] = el.value;
     persist();
   }
+}
+
+function commitTreadmillField({ ei, si, field, value }) {
+  const set = state.activeWorkout?.exercises?.[ei]?.sets?.[si];
+  if (!set || !isTreadmillBlock(state.activeWorkout.exercises[ei])) return;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return;
+  if (field === 'incline' || field === 'speed') {
+    if (Number(set[field]) === n) return;
+    set[field] = n;
+  } else if (field === 'minutes' || field === 'seconds') {
+    const parts = splitDuration(set.durationSec);
+    const minutes = field === 'minutes' ? n : parts.minutes;
+    const seconds = field === 'seconds' ? n : parts.seconds;
+    const next = minutes * 60 + seconds;
+    if (next === Number(set.durationSec)) return;
+    set.durationSec = next;
+  } else {
+    return;
+  }
+  set.kind = 'treadmill';
+  persist();
+  const readout = document.querySelector(`[data-bout-readout="${ei}-${si}"]`);
+  if (readout) readout.textContent = formatBout(set);
 }
 
 function onSubmit(event) {

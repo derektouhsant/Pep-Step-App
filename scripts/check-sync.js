@@ -18,9 +18,35 @@ const local = {
     },
   },
   customFoods: [{ id: 'c1', name: 'Chili' }],
-  workoutHistory: [{ id: 'w1', name: 'Push', finishedAt: 100, startedAt: 1 }],
+  workoutHistory: [
+    {
+      id: 'w1',
+      name: 'Push',
+      finishedAt: 100,
+      startedAt: 1,
+      exercises: [
+        {
+          exerciseId: 'treadmill',
+          name: 'Treadmill',
+          bodyPart: 'cardio',
+          log: 'treadmill',
+          sets: [{ kind: 'treadmill', incline: 1.5, speed: 3.5, durationSec: 600, done: true }],
+        },
+        {
+          exerciseId: 'barbell-bench-press',
+          name: 'Barbell Bench Press',
+          bodyPart: 'chest',
+          log: 'strength',
+          sets: [{ weight: 95, reps: 8, done: true }],
+        },
+      ],
+    },
+  ],
   plans: [{ id: 'p1', name: 'A' }],
-  lastSets: { bench: { weight: 95, date: '2026-09-16' } },
+  lastSets: {
+    bench: { weight: 95, date: '2026-09-16' },
+    treadmill: { kind: 'treadmill', incline: 1, speed: 3, durationSec: 600, date: '2026-09-16', at: 100 },
+  },
   activeWorkout: { id: 'live', startedAt: 50, name: 'Live' },
 };
 
@@ -44,7 +70,11 @@ const cloud = {
   customFoods: [{ id: 'c2', name: 'Soup' }],
   workoutHistory: [{ id: 'w2', name: 'Pull', finishedAt: 200, startedAt: 10 }],
   plans: [{ id: 'p2', name: 'B' }],
-  lastSets: { bench: { weight: 135, date: '2026-09-17' }, squat: { weight: 185, date: '2026-09-15' } },
+  lastSets: {
+    bench: { weight: 135, date: '2026-09-17' },
+    squat: { weight: 185, date: '2026-09-15' },
+    treadmill: { kind: 'treadmill', incline: 2.5, speed: 4.2, durationSec: 1800, date: '2026-09-17', at: 200 },
+  },
   activeWorkout: { id: 'w1', startedAt: 1, name: 'Old live' },
 };
 
@@ -61,6 +91,14 @@ assert(merged.plans.length === 2, 'plans should union');
 assert(merged.lastSets.bench.weight === 135, 'newer last-set should win');
 assert(merged.lastSets.squat.weight === 185, 'cloud-only last-set should appear');
 assert(merged.activeWorkout.id === 'live', 'finished cloud session should not replace local active workout');
+assert(merged.lastSets.treadmill.speed === 4.2, 'newer treadmill bout should win previous performance');
+assert(merged.lastSets.treadmill.incline === 2.5, 'treadmill incline should survive last-set merge');
+const savedTreadmill = merged.workoutHistory.find((w) => w.id === 'w1').exercises[0].sets[0];
+assert(savedTreadmill.incline === 1.5 && savedTreadmill.speed === 3.5 && savedTreadmill.durationSec === 600, 'treadmill set fields should survive history merge');
+assert(merged.workoutHistory.find((w) => w.id === 'w1').exercises[1].sets[0].reps === 8, 'strength sets should stay reps and load');
+
+const roundTrip = JSON.parse(JSON.stringify(merged.workoutHistory.find((w) => w.id === 'w1')));
+assert(roundTrip.exercises[0].sets[0].durationSec === 600, 'localStorage-style JSON round trip should keep treadmill duration');
 
 const byId = mergeById([{ id: '1', n: 'local' }], [{ id: '1', n: 'cloud' }, { id: '2', n: 'other' }]);
 assert(byId.find((x) => x.id === '1').n === 'local', 'local id should win on conflict');
