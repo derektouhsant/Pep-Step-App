@@ -1,6 +1,8 @@
 import { BODY_PARTS, bodyPartName, isCardio } from '../data/exercises.js';
+import { isTreadmillBlock, workoutTreadmillLines } from '../data/treadmill.js';
 import { esc, formatDuration, formatTime } from '../utils.js';
 import { icons } from '../icons.js';
+import { renderTreadmillBlock } from './treadmill.js';
 
 export function coverageSet(exercises) {
   return new Set((exercises || []).map((e) => e.bodyPart));
@@ -44,7 +46,11 @@ function renderHome(state) {
         ? `<section class="card hero-card">
             <div class="tiny">In progress</div>
             <h2 style="margin:6px 0 4px;font-size:20px">${esc(active.name || 'Workout')}</h2>
-            <p class="muted">Started ${esc(formatTime(active.startedAt))} · ${(active.exercises || []).length} exercises</p>
+            <p class="muted">Started ${esc(formatTime(active.startedAt))} · ${(active.exercises || []).length} exercises${
+              workoutTreadmillLines(active).length
+                ? ` · ${esc(workoutTreadmillLines(active).join(' · '))}`
+                : ''
+            }</p>
             <div class="grid-2" style="margin-top:12px">
               <button class="steel-btn" data-act="open-logger">Resume</button>
               <button class="steel-btn" data-act="finish-workout" style="background:transparent;border:1px solid rgba(255,255,255,.35)">Finish</button>
@@ -53,7 +59,7 @@ function renderHome(state) {
         : `<section class="card hero-card">
             <div class="tiny">Workouts</div>
             <h2 style="margin:6px 0 4px;font-size:20px">Ready when you are</h2>
-            <p class="muted">Log sets, browse by body part, or start a full-coverage plan.</p>
+            <p class="muted">Log sets or a treadmill bout, browse by body part, or start a full-coverage plan.</p>
             <button class="steel-btn" style="margin-top:12px;width:100%" data-act="start-workout">Start workout</button>
           </section>`
     }
@@ -90,6 +96,9 @@ function renderHome(state) {
             <span class="muted">${esc(formatDuration(w.finishedAt - w.startedAt))}</span>
           </div>
           <div class="muted">${new Date(w.finishedAt).toLocaleDateString()} · ${(w.exercises || []).length} exercises</div>
+          ${workoutTreadmillLines(w)
+            .map((line) => `<div class="history-detail">${esc(line)}</div>`)
+            .join('')}
         </div>`
               )
               .join('')
@@ -124,7 +133,9 @@ function renderBrowse(ui, catalog) {
         <div class="list-row">
           <div>
             <div class="food-name">${esc(e.name)}</div>
-            <div class="food-meta">${esc(e.equipment)} · ${esc(bodyPartName(e.bodyPart))}</div>
+            <div class="food-meta">${esc(e.equipment)} · ${esc(bodyPartName(e.bodyPart))}${
+              e.log === 'treadmill' ? ' · Incline, speed, time' : ''
+            }</div>
           </div>
           <button class="steel-btn" data-act="add-exercise" data-id="${esc(e.id)}">Add</button>
         </div>`
@@ -136,6 +147,15 @@ function renderBrowse(ui, catalog) {
   `;
 }
 
+function resolveLog(ex, catalog) {
+  if (ex.log === 'treadmill' || ex.log === 'duration' || ex.log === 'strength') return ex.log;
+  if (isTreadmillBlock(ex)) return 'treadmill';
+  const cat = catalog.find((c) => c.id === ex.exerciseId);
+  if (cat?.log) return cat.log;
+  if (isCardio(cat || ex)) return 'duration';
+  return 'strength';
+}
+
 function renderLogger(state, catalog) {
   const w = state.activeWorkout;
   if (!w) {
@@ -145,7 +165,9 @@ function renderLogger(state, catalog) {
   const blocks = (w.exercises || [])
     .map((ex, ei) => {
       const prev = state.lastSets[ex.exerciseId];
-      const cardio = isCardio(catalog.find((c) => c.id === ex.exerciseId) || ex);
+      const log = resolveLog(ex, catalog);
+      if (log === 'treadmill') return renderTreadmillBlock(ex, ei, prev);
+      const cardio = log === 'duration';
       const prevLine = prev
         ? `<div class="prev-line">Previous: ${cardio ? `${esc(prev.reps)} min` : `${esc(prev.weight)} lb × ${esc(prev.reps)}`}</div>`
         : `<div class="prev-line">No previous performance yet</div>`;
