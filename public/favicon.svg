@@ -1,4 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="PepStep">
-  <rect width="64" height="64" rx="14" fill="#0A2540"/>
-  <text x="32" y="44" text-anchor="middle" font-family="Georgia, serif" font-size="34" font-weight="700" fill="#FFFFFF">P</text>
+  <rect width="64" height="64" fill="#0A2540"/>
+  <text x="32" y="38" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="34" font-weight="700" fill="#FFFFFF">P</text>
+  <rect x="18" y="44" width="28" height="3" rx="1.5" fill="#A8C5DB"/>
+  <rect x="14" y="50" width="36" height="3" rx="1.5" fill="#A8C5DB"/>
+  <rect x="10" y="56" width="44" height="3" rx="1.5" fill="#A8C5DB"/>
 </svg>

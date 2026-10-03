@@ -17,6 +17,7 @@
     <meta name="apple-mobile-web-app-title" content="PepStep" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -28,6 +29,11 @@
     <title>PepStep — Put a Pep in Your Step</title>
   </head>
   <body>
+    <div id="boot-splash" class="boot-splash" role="status" aria-label="PepStep is loading">
+      <img src="/icon-192.png" alt="" width="96" height="96" />
+      <strong>PepStep</strong>
+      <span>Longevity is Movement</span>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
   </body>

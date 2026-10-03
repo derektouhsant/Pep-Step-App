@@ -36,8 +36,8 @@ export function dayHasMeals(day) {
   return MEALS.some((meal) => (day?.meals?.[meal.id] || []).length > 0);
 }
 
-export function isActiveDay(state, iso) {
-  return dayHasMeals(viewDay(state, iso)) || workoutDaySet(state).has(iso);
+export function isActiveDay(state, iso, extraDays) {
+  return dayHasMeals(viewDay(state, iso)) || workoutDaySet(state).has(iso) || Boolean(extraDays?.has(iso));
 }
 
 export function firstEmptyMeal(day) {
@@ -57,14 +57,14 @@ export function lastSevenDays(today) {
   return Array.from({ length: 7 }, (_, i) => addDays(today, i - 6));
 }
 
-export function movementStreak(state, today) {
+export function movementStreak(state, today, extraDays) {
   let cursor = today;
-  if (!isActiveDay(state, today)) {
+  if (!isActiveDay(state, today, extraDays)) {
     cursor = addDays(today, -1);
-    if (!isActiveDay(state, cursor)) return 0;
+    if (!isActiveDay(state, cursor, extraDays)) return 0;
   }
   let n = 0;
-  while (isActiveDay(state, cursor) && n < 365) {
+  while (isActiveDay(state, cursor, extraDays) && n < 365) {
     n += 1;
     cursor = addDays(cursor, -1);
   }
@@ -92,7 +92,7 @@ function mealSnapshot(day) {
   const logged = MEALS.filter((meal) => (day.meals[meal.id] || []).length > 0);
   if (!logged.length) {
     return `
-      <p class="empty-meal">Nothing logged yet</p>
+      <p class="empty-meal">Nothing logged yet. Add a meal when you are ready.</p>
       <button class="add-food" data-act="home-log-food">Log food in Diary</button>
     `;
   }
@@ -166,10 +166,10 @@ function activeName(state) {
   return state.activeWorkout?.name || 'Workout';
 }
 
-function weekCard(state, today) {
+function weekCard(state, today, extraDays) {
   const days = lastSevenDays(today);
-  const activeCount = days.filter((iso) => isActiveDay(state, iso)).length;
-  const streak = movementStreak(state, today);
+  const activeCount = days.filter((iso) => isActiveDay(state, iso, extraDays)).length;
+  const streak = movementStreak(state, today, extraDays);
   const streakLine =
     streak > 0
       ? `${streak} day${streak === 1 ? '' : 's'} in a row`
@@ -188,7 +188,7 @@ function weekCard(state, today) {
       <div class="week-row">
         ${days
           .map((iso) => {
-            const on = isActiveDay(state, iso);
+            const on = isActiveDay(state, iso, extraDays);
             const isToday = iso === today;
             return `
               <button class="week-day ${on ? 'on' : ''} ${isToday ? 'today' : ''}" data-act="go-diary-date" data-date="${esc(iso)}" aria-label="${esc(formatFullDate(iso))}">
@@ -202,13 +202,94 @@ function weekCard(state, today) {
   `;
 }
 
-export function renderHome(state) {
+function healthDaySet(workouts) {
+  const set = new Set();
+  for (const workout of workouts || []) {
+    if (workout.start) set.add(isoFromTs(workout.start));
+  }
+  return set;
+}
+
+function healthSummary(health) {
+  if (!health?.supported) return '';
+  if (health.status === 'loading') {
+    return `
+      <section class="card">
+        <div class="tiny">Apple Health</div>
+        <p class="muted">Reading steps and workouts…</p>
+      </section>
+    `;
+  }
+  if (health.status === 'off') {
+    return `
+      <section class="card">
+        <div class="tiny">Apple Health</div>
+        <h3 class="home-card-title">Steps and Watch workouts</h3>
+        <p class="muted">Read steps, workouts (including treadmill, walking, and running), active energy, and heart rate. PepStep only displays them here. Nothing is written back to Apple Health.</p>
+        <button class="primary-btn" style="margin-top:12px" data-act="connect-health">Connect Apple Health</button>
+      </section>
+    `;
+  }
+  if (health.status === 'error') {
+    return `
+      <section class="card">
+        <div class="tiny">Apple Health</div>
+        <p class="empty-help">${esc(health.error || 'Could not read Apple Health.')} You can keep logging workouts in PepStep either way.</p>
+        <button class="steel-btn" style="width:100%;margin-top:12px" data-act="connect-health">Try Apple Health again</button>
+      </section>
+    `;
+  }
+
+  const steps = health.stepsToday == null ? '—' : Math.round(health.stepsToday).toLocaleString();
+  const bits = [];
+  if (health.activeEnergyToday != null) bits.push(`${Math.round(health.activeEnergyToday)} kcal active energy`);
+  if (health.heartRateToday != null) bits.push(`avg heart rate ${health.heartRateToday} bpm`);
+  const detail = bits.length
+    ? bits.join(' · ')
+    : health.stepsToday
+      ? 'Steps today from Apple Health.'
+      : 'No steps recorded yet today. Walks from your iPhone or Watch show up here.';
+
+  return `
+    <section class="card">
+      <div class="row">
+        <div class="tiny">Apple Health</div>
+        <span class="badge health">Read only</span>
+      </div>
+      <div class="steps-num">${esc(steps)}</div>
+      <p class="muted" style="margin:2px 0 0">Steps today</p>
+      <p class="muted">${esc(detail)}</p>
+      <button class="text-btn" data-act="refresh-health">Refresh</button>
+    </section>
+  `;
+}
+
+function importedTodayNote(workouts, today) {
+  const todays = (workouts || []).filter((workout) => isoFromTs(workout.start) === today).slice(0, 2);
+  if (!todays.length) return '';
+  return todays
+    .map((workout) => {
+      const minutes = Math.max(1, Math.round((workout.durationSec || 0) / 60));
+      const extra = [
+        workout.energy != null ? `${workout.energy} kcal` : '',
+        workout.heartRate != null ? `${workout.heartRate} bpm` : '',
+      ]
+        .filter(Boolean)
+        .join(' · ');
+      return `<p class="muted">Apple Health · ${esc(workout.name)} · ${minutes} min${extra ? ` · ${esc(extra)}` : ''}. Not saved as a PepStep log.</p>`;
+    })
+    .join('');
+}
+
+export function renderHome(state, health) {
   const today = todayISO();
   const day = viewDay(state, today);
   const totals = dayTotals(day);
   const cups = Math.max(1, Number(state.goals.waterCups) || 8);
   const water = Number(day.water) || 0;
   const waterPct = cups > 0 ? Math.min(100, (water / cups) * 100) : 0;
+  const imported = health?.workouts || [];
+  const extraDays = healthDaySet(imported);
 
   return `
     <div class="home-hello">
@@ -231,7 +312,10 @@ export function renderHome(state) {
       ${mealSnapshot(day)}
     </section>
 
+    ${healthSummary(health)}
     ${workoutCard(state, today)}
-    ${weekCard(state, today)}
+    ${importedTodayNote(imported, today)}
+    ${weekCard(state, today, extraDays)}
+    <p class="fine-print">Not medical advice. PepStep is a log for meals and movement, not a diagnosis or treatment.</p>
   `;
 }

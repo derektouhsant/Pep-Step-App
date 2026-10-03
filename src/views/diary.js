@@ -78,7 +78,7 @@ function mealCard(meal, items) {
       </div>`
         )
         .join('')
-    : `<p class="empty-meal">Nothing logged yet</p>`;
+    : `<p class="empty-meal">Nothing logged yet. Add a food to track this meal.</p>`;
 
   return `
     <section class="card">

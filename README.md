@@ -16,8 +16,16 @@ Peptide catalog, logbook, reminders, shop, and regimen tools are **intentionally
 
 1. **Home** (default) — today overview of diary nutrition (calories left, macros, water, meal snapshot) and workouts (none / in progress / finished), plus a light 7-day movement glance from existing logs. Cards and CTAs jump into Diary or Workouts.
 2. **Diary** — calorie ring, macro bars, meals, water cups, editable goals, sample foods + custom entries
-3. **Workouts** — start / resume / finish, previous performance, browse ~200 exercises by body part, DIY or AI plan builder, video placeholders. **Treadmill** (Cardio) logs incline, speed (mph), and time with scroll wheels. Other cardio still logs minutes and calories. Strength stays sets, reps, and load.
-4. **More** — account / cloud sync, Add to Home Screen tip, brand, [pepstepguide.com](https://pepstepguide.com), [support@pepstepguide.com](mailto:support@pepstepguide.com), not-medical-advice disclaimer
+3. **Workouts** — start / resume / finish, previous performance, browse ~200 exercises by body part, DIY or AI plan builder. **Treadmill** (Cardio) logs incline, speed (mph), and time with scroll wheels. Other cardio still logs minutes and calories. Strength stays sets, reps, and load. Form-video placeholders stay hidden while `SHOW_WORKOUT_VIDEOS` in `src/config.js` is `false` (YouTube links come later; do not self-host video).
+4. **More** — account / cloud sync, Add to Home Screen tip, brand, [pepstepguide.com](https://pepstepguide.com), [support@pepstepguide.com](mailto:support@pepstepguide.com), privacy / support / terms, not-medical-advice disclaimer
+
+Public pages (no login), for App Store URLs:
+
+- https://pep-step-app.vercel.app/privacy
+- https://pep-step-app.vercel.app/support
+- https://pep-step-app.vercel.app/terms
+
+The privacy copy is a **draft for review, not legal advice**. The contact address `derektouhsant@gmail.com` is a placeholder to swap before submission.
 
 ## Offline vs cloud
 
@@ -72,6 +80,21 @@ VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 
 Never put the `service_role` key in this app. The anon key is a public client key; RLS is what protects user data.
 
+6. **Account deletion** (required before App Store review). The anon key cannot delete auth users. Apply `supabase/migrations/002_delete_own_account.sql`:
+   1. Dashboard → **SQL Editor** → **New query**.
+   2. Paste the whole file and run it.
+   3. Confirm **Database → Functions** lists `delete_own_account`.
+
+   That function deletes only `auth.uid()`, plus the matching rows in `profiles`, `diary_days`, `custom_foods`, `workout_sessions`, and `workout_plans`. In the app: **More → Account → Delete account**.
+
+   If the SQL editor returns `permission denied for table users`, deploy the Edge Function instead (the app tries the SQL function first, then this function):
+
+   1. Dashboard → **Edge Functions** → **Deploy a new function** → name it `delete-account`.
+   2. Paste `supabase/functions/delete-account/index.ts` and deploy. Leave **Verify JWT** on.
+   3. Or, with the [Supabase CLI](https://supabase.com/docs/guides/cli): `supabase login`, `supabase link --project-ref YOUR_PROJECT_REF`, then `supabase functions deploy delete-account`.
+
+   The hosted function reads `SUPABASE_SERVICE_ROLE_KEY` from the function environment. Do not copy that key into `.env.local` or Vercel.
+
 Restart `npm run dev` after changing env vars.
 
 ## Test sync on two browsers
@@ -87,7 +110,7 @@ Magic links are one-time: each browser/profile needs its own email. Check spam i
 
 ## iPhone: Add to Home Screen
 
-PepStep is a mobile PWA (manifest, navy `#0A2540` theme color, 180px apple-touch-icon). It is built for Safari’s viewport, including safe-area padding above the home indicator.
+PepStep is a mobile PWA (manifest, navy `#0A2540` theme color, app icons, and a branded splash). It is built for Safari’s viewport, including safe-area padding for the notch and the home indicator. A short note on Home says the log is not medical advice. If the device is offline, a banner explains that saved logs still work and will sync later.
 
 1. Open the deployed site in **Safari** (not Chrome, and not an in-app browser).
 2. Tap the **Share** button.
@@ -95,6 +118,45 @@ PepStep is a mobile PWA (manifest, navy `#0A2540` theme color, 180px apple-touch
 4. Open the PepStep icon on the Home Screen for a full-screen, branded app.
 
 The More tab (and a first-run banner) repeats these steps in the app.
+
+## iOS app (Capacitor)
+
+The website build is unchanged (`npm run build` → `dist`, deployed by Vercel). The native shell lives in `ios/` and is opened in Xcode on a Mac.
+
+Bundle id: **`com.pepstep.app`**. Change this in `capacitor.config.json` and in Xcode (Signing & Capabilities → Bundle Identifier) **before the first App Store submit** if you want a different id. Apple will not let you change it later for the same app record.
+
+```bash
+npm install
+npm run build:ios
+```
+
+`build:ios` is `vite build` plus `npx cap sync ios`. Then open `ios/App/App.xcodeproj` in Xcode.
+
+### Magic-link return
+
+Inside the iOS app, sign-in emails redirect to `pepstep://auth/callback` (a custom URL scheme registered on the app). The website still redirects to its own origin, same as before.
+
+In Supabase → **Authentication → URL configuration → Redirect URLs**, add:
+
+- `pepstep://auth/callback`
+- `https://pep-step-app.vercel.app`
+- `https://pep-step-app.vercel.app/**`
+- `http://localhost:5173/**` for local Vite
+
+The iPhone must be able to open the mail link. The app exchanges the `code` for a session when iOS opens PepStep.
+
+### Apple Health (read-only)
+
+On iOS, Home can show today’s steps, active energy, and average heart rate, and Workouts history can list Watch workouts labeled **Apple Health**. Those imports are not copied into the PepStep log and are not uploaded to Supabase. The website hides this UI.
+
+The project already includes:
+
+- `ios/App/App/App.entitlements` with the HealthKit entitlement
+- `NSHealthShareUsageDescription` and `NSHealthUpdateUsageDescription` in `ios/App/App/Info.plist` (the update string says PepStep does not write; the app never requests write access)
+
+In Xcode, open the app target → **Signing & Capabilities**. If HealthKit is not listed, click **+ Capability** and add **HealthKit**. Leave clinical-records / health-records access off. The plugin is `@capgo/capacitor-health` (read: workouts, steps, heart rate, active energy). PepStep does not request write permission and does not call the plugin’s save method.
+
+HealthKit only works on a real iPhone. This repo was prepared on Linux, so the permission prompt and Watch import still need a device check.
 
 ## Deploy on Vercel
 

@@ -1,3 +1,4 @@
+import { SHOW_WORKOUT_VIDEOS } from './config.js';
 import { FOODS } from './data/foods.js';
 import { EXERCISES, BODY_PARTS, getExercise, exercisesByPart } from './data/exercises.js';
 import { formatBout, isTreadmillBlock, splitDuration, treadmillBout } from './data/treadmill.js';
@@ -9,6 +10,11 @@ import { renderDiary, MEALS, dayTotals, calorieProgress } from './views/diary.js
 import { renderHome, firstEmptyMeal } from './views/home.js';
 import { renderWorkouts, missingParts } from './views/workouts.js';
 import { renderMore, renderInstallTip } from './views/more.js';
+import { legalPageFromPath, legalTitle, renderLegalPage } from './views/legal.js';
+import { renderOfflineBanner } from './views/offline.js';
+import { isNativeApp } from './platform.js';
+import { initNative } from './native.js';
+import { connectHealth, getHealthInfo, initHealth, refreshHealth, visibleHealthWorkouts } from './health/health.js';
 import {
   initCloud,
   getSyncInfo,
@@ -19,9 +25,11 @@ import {
   isStandaloneApp,
   clearCloudData,
   syncNow,
+  deleteAccount,
 } from './cloud/sync.js';
 
 let state = loadState();
+let legalPage = legalPageFromPath(window.location.pathname);
 const ui = {
   tab: 'home',
   date: todayISO(),
@@ -89,9 +97,10 @@ function renderSheet() {
   if (s.type === 'food') return foodSheet(s);
   if (s.type === 'goals') return goalsSheet();
   if (s.type === 'entry') return entrySheet(s);
-  if (s.type === 'video') return videoSheet(s);
+  if (SHOW_WORKOUT_VIDEOS && s.type === 'video') return videoSheet(s);
   if (s.type === 'confirm-finish') return finishSheet();
   if (s.type === 'confirm-reset') return resetSheet();
+  if (s.type === 'confirm-delete-account') return deleteAccountSheet();
   return '';
 }
 
@@ -225,6 +234,21 @@ function finishSheet() {
   `;
 }
 
+function deleteAccountSheet() {
+  const busy = ui.deletingAccount;
+  return `
+    <div class="overlay" data-act="close-sheet">
+      <div class="sheet" data-stop>
+        <div class="grab"></div>
+        <h3 style="margin:0 0 8px;color:var(--navy)">Delete account?</h3>
+        <p class="muted">This permanently deletes your PepStep account and the diary, foods, workouts, and plans stored with it. Data on this device is cleared too. This cannot be undone.</p>
+        <button class="danger-btn" data-act="confirm-delete-account" ${busy ? 'disabled' : ''}>${busy ? 'Deleting…' : 'Delete account'}</button>
+        <button class="text-btn" style="width:100%;margin-top:8px" data-act="close-sheet" ${busy ? 'disabled' : ''}>Cancel</button>
+      </div>
+    </div>
+  `;
+}
+
 function resetSheet() {
   const signedIn = Boolean(getSyncInfo().user);
   return `
@@ -291,25 +315,49 @@ function tabbar() {
   `;
 }
 
+function healthForView() {
+  const health = getHealthInfo();
+  return { ...health, workouts: visibleHealthWorkouts(state) };
+}
+
 function viewHtml() {
-  if (ui.tab === 'home') return renderHome(state);
-  if (ui.tab === 'workouts') return renderWorkouts(state, ui, EXERCISES);
+  if (ui.tab === 'home') return renderHome(state, healthForView());
+  if (ui.tab === 'workouts') return renderWorkouts(state, ui, EXERCISES, healthForView());
   if (ui.tab === 'more') return renderMore(state, ui, getSyncInfo());
   return renderDiary(state, ui, day());
 }
 
 function installBannerHtml() {
+  if (isNativeApp()) return '';
   if (ui.tab === 'more') return '';
   if (getSyncInfo().a2hsDismissed || isStandaloneApp()) return '';
   return renderInstallTip({ compact: true });
 }
 
+function showLegal(page, { push = true } = {}) {
+  legalPage = page;
+  if (push) {
+    const next = page ? `/${page}` : '/';
+    if (window.location.pathname.replace(/\/+$/, '') !== next.replace(/\/+$/, '')) {
+      history.pushState({ legal: page }, '', next);
+    }
+  }
+  render();
+}
+
 export function render() {
+  document.getElementById('boot-splash')?.remove();
   const root = document.getElementById('app');
+  if (legalPage) {
+    document.title = legalTitle(legalPage);
+    root.innerHTML = renderLegalPage(legalPage);
+    return;
+  }
+  document.title = 'PepStep — Put a Pep in Your Step';
   root.innerHTML = `
     <div class="app-frame">
       ${header()}
-      <main class="view">${installBannerHtml()}${viewHtml()}</main>
+      <main class="view">${renderOfflineBanner()}${installBannerHtml()}${viewHtml()}</main>
       ${tabbar()}
       ${renderSheet()}
       <div id="toast" class="toast" ${ui.toast ? '' : 'hidden'}>${esc(ui.toast)}</div>
@@ -492,6 +540,7 @@ function onClick(event) {
   const overlay = event.target.closest('.overlay');
   const stop = event.target.closest('[data-stop]');
   if (overlay && !stop) {
+    if (ui.deletingAccount) return;
     ui.sheet = null;
     render();
     return;
@@ -568,6 +617,7 @@ function onClick(event) {
       render();
     },
     'close-sheet'() {
+      if (ui.deletingAccount) return;
       ui.sheet = null;
       render();
     },
@@ -717,6 +767,7 @@ function onClick(event) {
       render();
     },
     'open-videos'() {
+      if (!SHOW_WORKOUT_VIDEOS) return;
       ui.workoutView = 'videos';
       ui.search = '';
       render();
@@ -807,12 +858,42 @@ function onClick(event) {
       finishWorkout();
     },
     'play-video'() {
+      if (!SHOW_WORKOUT_VIDEOS) return;
       ui.sheet = { type: 'video', id: btn.dataset.id };
       render();
     },
     'reset-data'() {
       ui.sheet = { type: 'confirm-reset' };
       render();
+    },
+    'delete-account'() {
+      if (!getSyncInfo().user) {
+        toast('Sign in before deleting your account');
+        return;
+      }
+      ui.sheet = { type: 'confirm-delete-account' };
+      render();
+    },
+    async 'confirm-delete-account'() {
+      if (ui.deletingAccount) return;
+      ui.deletingAccount = true;
+      render();
+      try {
+        await deleteAccount();
+        clearLocalState();
+        state = defaultState();
+        ui.sheet = null;
+        ui.tab = 'more';
+        ui.date = todayISO();
+        ui.workoutView = 'home';
+        ui.deletingAccount = false;
+        toast('Account deleted');
+        render();
+      } catch (err) {
+        ui.deletingAccount = false;
+        toast(err.message || 'Could not delete account');
+        render();
+      }
     },
     async 'confirm-reset'() {
       try {
@@ -853,6 +934,35 @@ function onClick(event) {
     'dismiss-a2hs'() {
       dismissA2hs();
       render();
+    },
+    'open-legal'() {
+      const page = btn.dataset.page;
+      if (!page) return;
+      showLegal(page);
+    },
+    'close-legal'() {
+      showLegal(null);
+    },
+    async 'connect-health'() {
+      try {
+        toast('Asking Apple Health…');
+        await connectHealth();
+        toast('Apple Health connected');
+        render();
+      } catch (err) {
+        toast(err.message || 'Could not connect Apple Health');
+        render();
+      }
+    },
+    async 'refresh-health'() {
+      try {
+        await refreshHealth();
+        toast('Apple Health updated');
+        render();
+      } catch (err) {
+        toast(err.message || 'Could not read Apple Health');
+        render();
+      }
     },
     async 'sync-now'() {
       try {
@@ -953,7 +1063,7 @@ function onSubmit(event) {
 }
 
 function onKey(event) {
-  if (event.key === 'Escape' && ui.sheet) {
+  if (event.key === 'Escape' && ui.sheet && !ui.deletingAccount) {
     ui.sheet = null;
     render();
   }
@@ -964,7 +1074,15 @@ export function init() {
   document.addEventListener('input', onInput);
   document.addEventListener('submit', onSubmit);
   document.addEventListener('keydown', onKey);
+  window.addEventListener('popstate', () => {
+    legalPage = legalPageFromPath(window.location.pathname);
+    render();
+  });
+  window.addEventListener('online', () => render());
+  window.addEventListener('offline', () => render());
+  initHealth(() => render());
   render();
+  initNative();
   initCloud({
     getState: () => state,
     setState(next) {

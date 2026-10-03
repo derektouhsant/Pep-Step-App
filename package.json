@@ -8,13 +8,23 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "cap:sync": "cap sync ios",
+    "build:ios": "vite build && cap sync ios",
     "check-data": "node scripts/check-data.js",
     "check-sync": "node scripts/check-sync.js"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.2",
     "vite": "^6.3.6"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4",
+    "@capgo/capacitor-health": "^8.11.4",
     "@supabase/supabase-js": "^2.116.0"
   }
 }

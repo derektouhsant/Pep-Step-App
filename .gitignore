@@ -6,3 +6,10 @@ dist
 !.env.example
 *.local
 .vercel
+
+# Xcode build output. The ios/ project itself is committed.
+ios/App/Pods/
+ios/App/build/
+ios/DerivedData/
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/

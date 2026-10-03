@@ -1,0 +1,6 @@
+# Used by the Supabase CLI when Derek deploys the delete-account function.
+# project_id here is the local CLI name, not the hosted project ref.
+project_id = "pepstep"
+
+[functions.delete-account]
+verify_jwt = true
