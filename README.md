@@ -72,6 +72,21 @@ VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 
 Never put the `service_role` key in this app. The anon key is a public client key; RLS is what protects user data.
 
+6. **Account deletion** (required before App Store review). The anon key cannot delete auth users. Apply `supabase/migrations/002_delete_own_account.sql`:
+   1. Dashboard → **SQL Editor** → **New query**.
+   2. Paste the whole file and run it.
+   3. Confirm **Database → Functions** lists `delete_own_account`.
+
+   That function deletes only `auth.uid()`, plus the matching rows in `profiles`, `diary_days`, `custom_foods`, `workout_sessions`, and `workout_plans`. In the app: **More → Account → Delete account**.
+
+   If the SQL editor returns `permission denied for table users`, deploy the Edge Function instead (the app tries the SQL function first, then this function):
+
+   1. Dashboard → **Edge Functions** → **Deploy a new function** → name it `delete-account`.
+   2. Paste `supabase/functions/delete-account/index.ts` and deploy. Leave **Verify JWT** on.
+   3. Or, with the [Supabase CLI](https://supabase.com/docs/guides/cli): `supabase login`, `supabase link --project-ref YOUR_PROJECT_REF`, then `supabase functions deploy delete-account`.
+
+   The hosted function reads `SUPABASE_SERVICE_ROLE_KEY` from the function environment. Do not copy that key into `.env.local` or Vercel.
+
 Restart `npm run dev` after changing env vars.
 
 ## Test sync on two browsers

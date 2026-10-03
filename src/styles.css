@@ -1070,6 +1070,32 @@ img {
   font-size: 13px;
 }
 
+.account-delete {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 12px 0 4px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  font-size: 15px;
+}
+
+.danger-btn {
+  background: #7a3140;
+  color: var(--white);
+  border: 0;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 12px 18px;
+  width: 100%;
+}
+
+.danger-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .sync-pill {
   display: inline-flex;
   align-items: center;

@@ -285,6 +285,66 @@ export async function clearCloudData() {
   }
 }
 
+function deleteFailureMessage(error) {
+  const text = String(error?.message || error || '');
+  if (/permission denied/i.test(text)) {
+    return 'Could not delete the account. The Supabase delete path needs to be turned on (see the README).';
+  }
+  if (/not found|404|failed to send a request to the edge function|function/i.test(text)) {
+    return 'Could not delete the account. Run the delete-account migration in Supabase, or deploy the delete-account Edge Function.';
+  }
+  return text || 'Could not delete the account';
+}
+
+async function deleteViaEdgeFunction(supabase) {
+  const { data, error } = await supabase.functions.invoke('delete-account', { body: {} });
+  if (error) {
+    let detail = error.message || '';
+    try {
+      if (error.context && typeof error.context.json === 'function') {
+        const body = await error.context.json();
+        if (body?.error) detail = body.error;
+      }
+    } catch {
+      /* response body was not JSON */
+    }
+    throw new Error(detail || 'Could not delete the account');
+  }
+  if (data?.error) throw new Error(data.error);
+  if (data && data.ok === false) throw new Error('Could not delete the account');
+}
+
+/**
+ * Deletes synced PepStep rows and the auth user, then drops the local session.
+ * Tries the SQL function first (dashboard migration). If that is missing or
+ * cannot touch auth.users, tries the delete-account Edge Function.
+ */
+export async function deleteAccount() {
+  const supabase = getSupabase();
+  const userId = syncInfo.user?.id;
+  if (!supabase || !userId) throw new Error('Sign in before deleting your account');
+
+  const rpc = await supabase.rpc('delete_own_account');
+  if (rpc.error) {
+    try {
+      await deleteViaEdgeFunction(supabase);
+    } catch (edgeError) {
+      const rpcMessage = deleteFailureMessage(rpc.error);
+      const edgeMessage = deleteFailureMessage(edgeError);
+      if (rpcMessage === edgeMessage) throw new Error(rpcMessage);
+      throw new Error(edgeMessage || rpcMessage);
+    }
+  }
+
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch {
+    /* The auth user is already gone; drop whatever session remains. */
+  }
+  applySession(null);
+  syncInfo.lastSyncedAt = null;
+}
+
 function hydrateFromCloud() {
   hydrateChain = hydrateChain.then(runHydrate, runHydrate);
   return hydrateChain;

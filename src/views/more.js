@@ -82,6 +82,8 @@ export function renderAccount(cloud, ui) {
         ${cloud.error ? `<p class="warn">${esc(cloud.error)}</p>` : ''}
         <button class="steel-btn" style="width:100%;margin-top:12px" data-act="sync-now">Sync now</button>
         <button class="text-btn" style="width:100%;margin-top:8px" data-act="sign-out">Sign out</button>
+        <button class="danger account-delete" data-act="delete-account">Delete account</button>
+        <p class="muted">Permanently deletes this account and the diary, foods, workouts, and plans synced to it, then clears this device.</p>
       </section>
     `;
   }
@@ -93,7 +95,7 @@ export function renderAccount(cloud, ui) {
         <strong>Cloud backup</strong>
         <span class="sync-pill ${tone}" data-sync-pill>${esc(status)}</span>
       </div>
-      <p class="disclaimer">Sign in with a magic link to sync diary and workouts across devices. Until then, this browser keeps an offline localStorage copy.</p>
+      <p class="disclaimer">Sign in with a magic link to sync diary and workouts across devices. Until then, this browser keeps an offline localStorage copy. Already have an account? Sign in here to delete it.</p>
       <form data-auth-form>
       <div class="field">
         <label for="auth-email">Email</label>
@@ -139,7 +141,7 @@ export function renderMore(state, ui, cloud) {
       <div class="tiny">On this device</div>
       <p class="disclaimer">${
         cloud.user
-          ? 'Signed-in data is stored in this browser and backed up to your PepStep account. Clearing data removes it here and in the cloud.'
+          ? 'Signed-in data is stored in this browser and backed up to your PepStep account. Clearing data removes the logs here and in the cloud. It does not delete the sign-in itself — use Delete account in the Account section for that.'
           : 'Diary, goals, workouts, and plans are stored in this browser with localStorage until you sign in. Clearing site data will erase the offline copy.'
       }</p>
       <button class="danger" data-act="reset-data">${cloud.user ? 'Clear local &amp; cloud PepStep data' : 'Clear local PepStep data'}</button>

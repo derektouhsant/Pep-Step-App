@@ -19,6 +19,7 @@ import {
   isStandaloneApp,
   clearCloudData,
   syncNow,
+  deleteAccount,
 } from './cloud/sync.js';
 
 let state = loadState();
@@ -92,6 +93,7 @@ function renderSheet() {
   if (s.type === 'video') return videoSheet(s);
   if (s.type === 'confirm-finish') return finishSheet();
   if (s.type === 'confirm-reset') return resetSheet();
+  if (s.type === 'confirm-delete-account') return deleteAccountSheet();
   return '';
 }
 
@@ -220,6 +222,21 @@ function finishSheet() {
         <p class="muted">Checked sets are saved as previous performance. Treadmill keeps incline, speed, and time from the last bout.</p>
         <button class="primary-btn" data-act="confirm-finish">Finish &amp; save</button>
         <button class="text-btn" style="width:100%;margin-top:8px" data-act="close-sheet">Keep going</button>
+      </div>
+    </div>
+  `;
+}
+
+function deleteAccountSheet() {
+  const busy = ui.deletingAccount;
+  return `
+    <div class="overlay" data-act="close-sheet">
+      <div class="sheet" data-stop>
+        <div class="grab"></div>
+        <h3 style="margin:0 0 8px;color:var(--navy)">Delete account?</h3>
+        <p class="muted">This permanently deletes your PepStep account and the diary, foods, workouts, and plans stored with it. Data on this device is cleared too. This cannot be undone.</p>
+        <button class="danger-btn" data-act="confirm-delete-account" ${busy ? 'disabled' : ''}>${busy ? 'Deleting…' : 'Delete account'}</button>
+        <button class="text-btn" style="width:100%;margin-top:8px" data-act="close-sheet" ${busy ? 'disabled' : ''}>Cancel</button>
       </div>
     </div>
   `;
@@ -492,6 +509,7 @@ function onClick(event) {
   const overlay = event.target.closest('.overlay');
   const stop = event.target.closest('[data-stop]');
   if (overlay && !stop) {
+    if (ui.deletingAccount) return;
     ui.sheet = null;
     render();
     return;
@@ -568,6 +586,7 @@ function onClick(event) {
       render();
     },
     'close-sheet'() {
+      if (ui.deletingAccount) return;
       ui.sheet = null;
       render();
     },
@@ -814,6 +833,35 @@ function onClick(event) {
       ui.sheet = { type: 'confirm-reset' };
       render();
     },
+    'delete-account'() {
+      if (!getSyncInfo().user) {
+        toast('Sign in before deleting your account');
+        return;
+      }
+      ui.sheet = { type: 'confirm-delete-account' };
+      render();
+    },
+    async 'confirm-delete-account'() {
+      if (ui.deletingAccount) return;
+      ui.deletingAccount = true;
+      render();
+      try {
+        await deleteAccount();
+        clearLocalState();
+        state = defaultState();
+        ui.sheet = null;
+        ui.tab = 'more';
+        ui.date = todayISO();
+        ui.workoutView = 'home';
+        ui.deletingAccount = false;
+        toast('Account deleted');
+        render();
+      } catch (err) {
+        ui.deletingAccount = false;
+        toast(err.message || 'Could not delete account');
+        render();
+      }
+    },
     async 'confirm-reset'() {
       try {
         if (getSyncInfo().user) await clearCloudData();
@@ -953,7 +1001,7 @@ function onSubmit(event) {
 }
 
 function onKey(event) {
-  if (event.key === 'Escape' && ui.sheet) {
+  if (event.key === 'Escape' && ui.sheet && !ui.deletingAccount) {
     ui.sheet = null;
     render();
   }
