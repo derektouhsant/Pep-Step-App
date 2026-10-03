@@ -106,7 +106,37 @@ export function renderAccount(cloud, ui) {
   `;
 }
 
-export function renderMore(state, ui, cloud) {
+export function renderHealthCard(health) {
+  if (!health?.supported) return '';
+  const on = Boolean(health.enabled);
+  const status = health.status === 'connecting' ? 'Connecting…' : health.status === 'error' ? 'Needs attention' : on ? 'Connected' : 'Off';
+  return `
+    <section class="card">
+      <div class="tiny">Apple Health</div>
+      <div class="row" style="margin:8px 0 10px">
+        <strong>Read workouts and steps</strong>
+        <button class="health-switch ${on ? 'on' : ''}" data-act="toggle-health" role="switch" aria-checked="${on ? 'true' : 'false'}" aria-label="Apple Health ${on ? 'on' : 'off'}">
+          <span></span>
+        </button>
+      </div>
+      <p class="disclaimer">${esc(status)}. PepStep can read steps, heart rate, active energy, and walking, running, and treadmill workouts. Nothing is written to Apple Health. Imported workouts stay on this iPhone and are not copied to your account.</p>
+      <p class="muted">Turning this off hides Apple Health data in PepStep. To stop sharing with the Health app, open Health → Sharing → Apps → PepStep.</p>
+      ${health.error ? `<p class="warn">${esc(health.error)}</p>` : ''}
+      ${
+        on &&
+        health.status !== 'connecting' &&
+        health.fetchedAt &&
+        !(health.stepsToday > 0) &&
+        !(health.workouts || []).length
+          ? `<p class="muted">If this stays empty, allow PepStep to read steps, workouts, heart rate, and active energy in the Health app.</p>`
+          : ''
+      }
+    </section>
+  `;
+}
+
+export function renderMore(state, ui, cloud, extras = {}) {
+  const native = Boolean(extras.native);
   return `
     <section class="card more-hero">
       <div class="tiny">PepStep Guide &amp; Research</div>
@@ -117,7 +147,8 @@ export function renderMore(state, ui, cloud) {
     </section>
 
     ${renderAccount(cloud, ui)}
-    ${renderInstallTip()}
+    ${renderHealthCard(extras.health)}
+    ${native ? '' : renderInstallTip()}
 
     <section class="card">
       <div class="tiny">This app</div>
@@ -138,9 +169,13 @@ export function renderMore(state, ui, cloud) {
     <section class="card">
       <div class="tiny">On this device</div>
       <p class="disclaimer">${
-        cloud.user
-          ? 'Signed-in data is stored in this browser and backed up to your PepStep account. Clearing data removes it here and in the cloud.'
-          : 'Diary, goals, workouts, and plans are stored in this browser with localStorage until you sign in. Clearing site data will erase the offline copy.'
+        native
+          ? cloud.user
+            ? 'Signed-in diary, goals, workouts, and plans are stored on this iPhone and backed up to your PepStep account. Apple Health imports stay on this iPhone only. Clearing data removes the PepStep copy here and in the cloud. It does not delete anything in Apple Health.'
+            : 'Diary, goals, workouts, and plans are stored on this iPhone until you sign in. Apple Health imports stay on this iPhone only and are not part of that copy.'
+          : cloud.user
+            ? 'Signed-in data is stored in this browser and backed up to your PepStep account. Clearing data removes it here and in the cloud.'
+            : 'Diary, goals, workouts, and plans are stored in this browser with localStorage until you sign in. Clearing site data will erase the offline copy.'
       }</p>
       <button class="danger" data-act="reset-data">${cloud.user ? 'Clear local &amp; cloud PepStep data' : 'Clear local PepStep data'}</button>
     </section>

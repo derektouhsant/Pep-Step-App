@@ -20,6 +20,8 @@ import {
   clearCloudData,
   syncNow,
 } from './cloud/sync.js';
+import { connectHealth, disconnectHealth, getHealthSnapshot, initHealth } from './health/health.js';
+import { isNativeApp, initNativeShell } from './native/platform.js';
 
 let state = loadState();
 const ui = {
@@ -292,9 +294,10 @@ function tabbar() {
 }
 
 function viewHtml() {
-  if (ui.tab === 'home') return renderHome(state);
-  if (ui.tab === 'workouts') return renderWorkouts(state, ui, EXERCISES);
-  if (ui.tab === 'more') return renderMore(state, ui, getSyncInfo());
+  const health = getHealthSnapshot();
+  if (ui.tab === 'home') return renderHome(state, { health });
+  if (ui.tab === 'workouts') return renderWorkouts(state, ui, EXERCISES, { health });
+  if (ui.tab === 'more') return renderMore(state, ui, getSyncInfo(), { health, native: isNativeApp() });
   return renderDiary(state, ui, day());
 }
 
@@ -517,6 +520,10 @@ function onClick(event) {
       if (!(state.activeWorkout && ui.workoutView === 'logger')) {
         ui.workoutView = 'home';
       }
+      render();
+    },
+    'go-more'() {
+      ui.tab = 'more';
       render();
     },
     'go-diary-date'() {
@@ -854,6 +861,22 @@ function onClick(event) {
       dismissA2hs();
       render();
     },
+    async 'toggle-health'() {
+      const health = getHealthSnapshot();
+      try {
+        if (health.enabled) {
+          await disconnectHealth();
+          toast('Apple Health hidden on this iPhone');
+        } else {
+          toast('Opening Apple Health…');
+          await connectHealth();
+          toast('Apple Health connected');
+        }
+      } catch (err) {
+        toast(err.message || 'Could not update Apple Health');
+      }
+      render();
+    },
     async 'sync-now'() {
       try {
         await syncNow();
@@ -964,6 +987,7 @@ export function init() {
   document.addEventListener('input', onInput);
   document.addEventListener('submit', onSubmit);
   document.addEventListener('keydown', onKey);
+  initNativeShell();
   render();
   initCloud({
     getState: () => state,
@@ -973,4 +997,5 @@ export function init() {
     },
     onChange: render,
   });
+  initHealth({ onChange: render });
 }

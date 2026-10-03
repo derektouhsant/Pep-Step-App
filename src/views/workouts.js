@@ -1,5 +1,6 @@
 import { BODY_PARTS, bodyPartName, isCardio } from '../data/exercises.js';
 import { isTreadmillBlock, workoutTreadmillLines } from '../data/treadmill.js';
+import { formatMiles, visibleHealthWorkouts } from '../health/model.js';
 import { esc, formatDuration, formatTime } from '../utils.js';
 import { icons } from '../icons.js';
 import { renderTreadmillBlock } from './treadmill.js';
@@ -24,22 +25,77 @@ function coverageGrid(exercises) {
   `;
 }
 
-export function renderWorkouts(state, ui, catalog) {
+export function renderWorkouts(state, ui, catalog, extras = {}) {
   if (ui.workoutView === 'browse') return renderBrowse(ui, catalog);
   if (ui.workoutView === 'logger') return renderLogger(state, catalog);
   if (ui.workoutView === 'plans') return renderPlans(state);
   if (ui.workoutView === 'builder') return renderBuilder(ui);
   if (ui.workoutView === 'videos') return renderVideos(ui, catalog);
-  return renderHome(state);
+  return renderHome(state, extras.health);
 }
 
 function backBtn(label = 'Workouts') {
   return `<div class="back-row"><button data-act="workout-home">${esc(label)}</button></div>`;
 }
 
-function renderHome(state) {
+function healthDetail(workout) {
+  const parts = [];
+  const seconds = Number(workout.durationSec) || 0;
+  parts.push(seconds > 0 && seconds < 60 ? `${seconds} sec` : formatDuration(seconds * 1000));
+  const miles = formatMiles(workout.distanceMeters);
+  if (miles) parts.push(miles);
+  if (workout.avgHeartRate) parts.push(`${workout.avgHeartRate} bpm avg`);
+  if (workout.calories > 0) parts.push(`${workout.calories} cal`);
+  return parts.join(' · ');
+}
+
+function historyEntries(state, health) {
+  const manual = (state.workoutHistory || []).map((workout) => ({
+    kind: 'manual',
+    at: workout.finishedAt || 0,
+    workout,
+  }));
+  const imported =
+    health?.supported && health.enabled
+      ? visibleHealthWorkouts(health.workouts, state).map((workout) => ({
+          kind: 'health',
+          at: workout.finishedAt || 0,
+          workout,
+        }))
+      : [];
+  const limit = imported.length ? 8 : 5;
+  return [...manual, ...imported].sort((a, b) => b.at - a.at).slice(0, limit);
+}
+
+function renderHistoryItem(entry) {
+  if (entry.kind === 'health') {
+    const workout = entry.workout;
+    return `
+      <div class="history-item">
+        <div class="row">
+          <strong>${esc(workout.name || 'Workout')}</strong>
+          <span class="health-badge">Apple Health</span>
+        </div>
+        <div class="muted">${new Date(workout.finishedAt).toLocaleDateString()} · ${esc(healthDetail(workout))}</div>
+      </div>`;
+  }
+  const w = entry.workout;
+  return `
+    <div class="history-item">
+      <div class="row">
+        <strong>${esc(w.name || 'Workout')}</strong>
+        <span class="muted">${esc(formatDuration(w.finishedAt - w.startedAt))}</span>
+      </div>
+      <div class="muted">${new Date(w.finishedAt).toLocaleDateString()} · ${(w.exercises || []).length} exercises</div>
+      ${workoutTreadmillLines(w)
+        .map((line) => `<div class="history-detail">${esc(line)}</div>`)
+        .join('')}
+    </div>`;
+}
+
+function renderHome(state, health) {
   const active = state.activeWorkout;
-  const recent = (state.workoutHistory || []).slice(0, 5);
+  const recent = historyEntries(state, health);
   return `
     ${
       active
@@ -87,21 +143,7 @@ function renderHome(state) {
       <div class="tiny">History</div>
       ${
         recent.length
-          ? recent
-              .map(
-                (w) => `
-        <div class="history-item">
-          <div class="row">
-            <strong>${esc(w.name || 'Workout')}</strong>
-            <span class="muted">${esc(formatDuration(w.finishedAt - w.startedAt))}</span>
-          </div>
-          <div class="muted">${new Date(w.finishedAt).toLocaleDateString()} · ${(w.exercises || []).length} exercises</div>
-          ${workoutTreadmillLines(w)
-            .map((line) => `<div class="history-detail">${esc(line)}</div>`)
-            .join('')}
-        </div>`
-              )
-              .join('')
+          ? recent.map((entry) => renderHistoryItem(entry)).join('')
           : `<p class="muted" style="margin:8px 0 0">Finished workouts will show up here.</p>`
       }
     </section>
