@@ -1,4 +1,5 @@
 import { defaultState } from '../storage.js';
+import { authRedirectUrl } from '../platform.js';
 import { getSupabase, isCloudConfigured } from './supabase.js';
 import { mergeStates } from './merge.js';
 
@@ -417,11 +418,61 @@ export async function sendMagicLink(email) {
   const { error } = await supabase.auth.signInWithOtp({
     email: trimmed,
     options: {
-      emailRedirectTo: window.location.origin,
+      emailRedirectTo: authRedirectUrl(),
       shouldCreateUser: true,
     },
   });
   if (error) throw error;
+}
+
+const consumedAuthCodes = new Set();
+
+/** Finish a magic link that opened the native app via pepstep://auth/callback. */
+export async function handleAuthCallbackUrl(url) {
+  if (!url || typeof url !== 'string' || !url.startsWith('pepstep:')) return;
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return;
+  }
+
+  const errorText = parsed.searchParams.get('error_description') || parsed.searchParams.get('error');
+  if (errorText) {
+    setStatus('error', decodeURIComponent(errorText.replace(/\+/g, ' ')));
+    hooks.onChange();
+    return;
+  }
+
+  const code = parsed.searchParams.get('code');
+  if (code) {
+    if (consumedAuthCodes.has(code)) return;
+    consumedAuthCodes.add(code);
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      consumedAuthCodes.delete(code);
+      setStatus('error', error.message || 'Could not finish sign-in');
+      hooks.onChange();
+    }
+    return;
+  }
+
+  const hash = new URLSearchParams((parsed.hash || '').replace(/^#/, ''));
+  const accessToken = hash.get('access_token');
+  const refreshToken = hash.get('refresh_token');
+  if (accessToken && refreshToken) {
+    const { error } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    if (error) {
+      setStatus('error', error.message || 'Could not finish sign-in');
+      hooks.onChange();
+    }
+  }
 }
 
 export async function signOut() {

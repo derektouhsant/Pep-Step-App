@@ -119,6 +119,32 @@ PepStep is a mobile PWA (manifest, navy `#0A2540` theme color, app icons, and a 
 
 The More tab (and a first-run banner) repeats these steps in the app.
 
+## iOS app (Capacitor)
+
+The website build is unchanged (`npm run build` → `dist`, deployed by Vercel). The native shell lives in `ios/` and is opened in Xcode on a Mac.
+
+Bundle id: **`com.pepstep.app`**. Change this in `capacitor.config.json` and in Xcode (Signing & Capabilities → Bundle Identifier) **before the first App Store submit** if you want a different id. Apple will not let you change it later for the same app record.
+
+```bash
+npm install
+npm run build:ios
+```
+
+`build:ios` is `vite build` plus `npx cap sync ios`. Then open `ios/App/App.xcodeproj` in Xcode.
+
+### Magic-link return
+
+Inside the iOS app, sign-in emails redirect to `pepstep://auth/callback` (a custom URL scheme registered on the app). The website still redirects to its own origin, same as before.
+
+In Supabase → **Authentication → URL configuration → Redirect URLs**, add:
+
+- `pepstep://auth/callback`
+- `https://pep-step-app.vercel.app`
+- `https://pep-step-app.vercel.app/**`
+- `http://localhost:5173/**` for local Vite
+
+The iPhone must be able to open the mail link. The app exchanges the `code` for a session when iOS opens PepStep.
+
 ## Deploy on Vercel
 
 This is a Vite static app. Import the GitHub repo in Vercel (or run `npx vercel`).

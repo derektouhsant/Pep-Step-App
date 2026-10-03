@@ -82,7 +82,8 @@ def save_png(image, path):
 
 def main():
     icon = draw_mark(1024)
-    save_png(icon, ROOT / "assets" / "icon.png")
+    # icon-only.png is the Capacitor asset input (full-bleed, not a logo on a background).
+    save_png(icon, ROOT / "assets" / "icon-only.png")
     save_png(icon.resize((512, 512), Image.Resampling.LANCZOS), ROOT / "public" / "icon-512.png")
     save_png(icon.resize((192, 192), Image.Resampling.LANCZOS), ROOT / "public" / "icon-192.png")
     save_png(icon.resize((180, 180), Image.Resampling.LANCZOS), ROOT / "public" / "apple-touch-icon.png")

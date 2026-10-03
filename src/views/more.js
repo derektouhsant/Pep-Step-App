@@ -1,3 +1,4 @@
+import { isNativeApp } from '../platform.js';
 import { esc } from '../utils.js';
 
 export function renderInstallTip({ compact = false } = {}) {
@@ -119,7 +120,7 @@ export function renderMore(state, ui, cloud) {
     </section>
 
     ${renderAccount(cloud, ui)}
-    ${renderInstallTip()}
+    ${isNativeApp() ? '' : renderInstallTip()}
 
     <section class="card">
       <div class="tiny">This app</div>

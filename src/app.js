@@ -12,6 +12,8 @@ import { renderWorkouts, missingParts } from './views/workouts.js';
 import { renderMore, renderInstallTip } from './views/more.js';
 import { legalPageFromPath, legalTitle, renderLegalPage } from './views/legal.js';
 import { renderOfflineBanner } from './views/offline.js';
+import { isNativeApp } from './platform.js';
+import { initNative } from './native.js';
 import {
   initCloud,
   getSyncInfo,
@@ -320,6 +322,7 @@ function viewHtml() {
 }
 
 function installBannerHtml() {
+  if (isNativeApp()) return '';
   if (ui.tab === 'more') return '';
   if (getSyncInfo().a2hsDismissed || isStandaloneApp()) return '';
   return renderInstallTip({ compact: true });
@@ -1051,6 +1054,7 @@ export function init() {
   window.addEventListener('online', () => render());
   window.addEventListener('offline', () => render());
   render();
+  initNative();
   initCloud({
     getState: () => state,
     setState(next) {
