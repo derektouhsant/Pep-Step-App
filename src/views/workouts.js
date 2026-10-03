@@ -1,7 +1,7 @@
 import { SHOW_WORKOUT_VIDEOS } from '../config.js';
 import { BODY_PARTS, bodyPartName, isCardio } from '../data/exercises.js';
 import { isTreadmillBlock, workoutTreadmillLines } from '../data/treadmill.js';
-import { esc, formatDuration, formatTime } from '../utils.js';
+import { esc, formatDuration, formatTime, formatWhen } from '../utils.js';
 import { icons } from '../icons.js';
 import { renderTreadmillBlock } from './treadmill.js';
 
@@ -25,22 +25,74 @@ function coverageGrid(exercises) {
   `;
 }
 
-export function renderWorkouts(state, ui, catalog) {
+export function renderWorkouts(state, ui, catalog, health) {
   if (ui.workoutView === 'browse') return renderBrowse(ui, catalog);
   if (ui.workoutView === 'logger') return renderLogger(state, catalog);
   if (ui.workoutView === 'plans') return renderPlans(state);
   if (ui.workoutView === 'builder') return renderBuilder(ui);
   if (SHOW_WORKOUT_VIDEOS && ui.workoutView === 'videos') return renderVideos(ui, catalog);
-  return renderHome(state);
+  return renderWorkoutHome(state, health);
 }
 
 function backBtn(label = 'Workouts') {
   return `<div class="back-row"><button data-act="workout-home">${esc(label)}</button></div>`;
 }
 
-function renderHome(state) {
+function healthHistoryItem(workout) {
+  const minutes = formatDuration((workout.durationSec || 0) * 1000);
+  const when = formatWhen(workout.end || workout.start);
+  const miles =
+    workout.distanceMeters > 0 ? `${(workout.distanceMeters / 1609.344).toFixed(2)} mi` : '';
+  const detail = [
+    miles,
+    workout.energy != null ? `${workout.energy} kcal` : '',
+    workout.heartRate != null ? `${workout.heartRate} bpm` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  return `
+    <div class="history-item">
+      <div class="row">
+        <strong>${esc(workout.name || 'Workout')}</strong>
+        <span class="badge health">Apple Health</span>
+      </div>
+      <div class="muted">${esc(when)} · ${esc(minutes)}${workout.sourceName ? ` · ${esc(workout.sourceName)}` : ''}</div>
+      ${detail ? `<div class="history-detail">${esc(detail)}</div>` : ''}
+      <div class="muted">Shown from Apple Health. Not saved as a PepStep log.</div>
+    </div>
+  `;
+}
+
+function combinedHistory(state, health) {
+  const manual = (state.workoutHistory || []).map((workout) => ({
+    at: workout.finishedAt || workout.startedAt || 0,
+    html: `
+        <div class="history-item">
+          <div class="row">
+            <strong>${esc(workout.name || 'Workout')}</strong>
+            <span class="muted">${esc(formatDuration((workout.finishedAt || 0) - (workout.startedAt || 0)))}</span>
+          </div>
+          <div class="muted">${workout.finishedAt ? new Date(workout.finishedAt).toLocaleDateString() : ''} · ${(workout.exercises || []).length} exercises</div>
+          ${workoutTreadmillLines(workout)
+            .map((line) => `<div class="history-detail">${esc(line)}</div>`)
+            .join('')}
+        </div>`,
+  }));
+  const imported = (health?.workouts || []).map((workout) => ({
+    at: workout.end || workout.start || 0,
+    html: healthHistoryItem(workout),
+  }));
+  return [...manual, ...imported].sort((a, b) => b.at - a.at).slice(0, 8);
+}
+
+function renderWorkoutHome(state, health) {
   const active = state.activeWorkout;
-  const recent = (state.workoutHistory || []).slice(0, 5);
+  const recent = combinedHistory(state, health);
+  const healthOn = Boolean(health?.supported);
+  const healthOff = healthOn && health.status === 'off';
+  const emptyCopy = healthOn
+    ? 'No finished workouts yet. Start one above, or a Watch workout will show up here labeled Apple Health.'
+    : 'No finished workouts yet. Start one above, then tap Finish and it will show up here.';
   return `
     ${
       active
@@ -88,27 +140,19 @@ function renderHome(state) {
       </button>
     </div>
 
+    ${
+      healthOff
+        ? `<section class="card">
+            <div class="tiny">Apple Health</div>
+            <p class="empty-help">Connect to show Watch workouts here, labeled Apple Health, without copying them into your PepStep log.</p>
+            <button class="steel-btn" style="width:100%;margin-top:12px" data-act="connect-health">Connect Apple Health</button>
+          </section>`
+        : ''
+    }
+
     <section class="card">
       <div class="tiny">History</div>
-      ${
-        recent.length
-          ? recent
-              .map(
-                (w) => `
-        <div class="history-item">
-          <div class="row">
-            <strong>${esc(w.name || 'Workout')}</strong>
-            <span class="muted">${esc(formatDuration(w.finishedAt - w.startedAt))}</span>
-          </div>
-          <div class="muted">${new Date(w.finishedAt).toLocaleDateString()} · ${(w.exercises || []).length} exercises</div>
-          ${workoutTreadmillLines(w)
-            .map((line) => `<div class="history-detail">${esc(line)}</div>`)
-            .join('')}
-        </div>`
-              )
-              .join('')
-          : `<p class="empty-help">No finished workouts yet. Start one above, then tap Finish and it will show up here.</p>`
-      }
+      ${recent.length ? recent.map((item) => item.html).join('') : `<p class="empty-help">${emptyCopy}</p>`}
     </section>
   `;
 }

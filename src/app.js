@@ -14,6 +14,7 @@ import { legalPageFromPath, legalTitle, renderLegalPage } from './views/legal.js
 import { renderOfflineBanner } from './views/offline.js';
 import { isNativeApp } from './platform.js';
 import { initNative } from './native.js';
+import { connectHealth, getHealthInfo, initHealth, refreshHealth, visibleHealthWorkouts } from './health/health.js';
 import {
   initCloud,
   getSyncInfo,
@@ -314,9 +315,14 @@ function tabbar() {
   `;
 }
 
+function healthForView() {
+  const health = getHealthInfo();
+  return { ...health, workouts: visibleHealthWorkouts(state) };
+}
+
 function viewHtml() {
-  if (ui.tab === 'home') return renderHome(state);
-  if (ui.tab === 'workouts') return renderWorkouts(state, ui, EXERCISES);
+  if (ui.tab === 'home') return renderHome(state, healthForView());
+  if (ui.tab === 'workouts') return renderWorkouts(state, ui, EXERCISES, healthForView());
   if (ui.tab === 'more') return renderMore(state, ui, getSyncInfo());
   return renderDiary(state, ui, day());
 }
@@ -937,6 +943,27 @@ function onClick(event) {
     'close-legal'() {
       showLegal(null);
     },
+    async 'connect-health'() {
+      try {
+        toast('Asking Apple Health…');
+        await connectHealth();
+        toast('Apple Health connected');
+        render();
+      } catch (err) {
+        toast(err.message || 'Could not connect Apple Health');
+        render();
+      }
+    },
+    async 'refresh-health'() {
+      try {
+        await refreshHealth();
+        toast('Apple Health updated');
+        render();
+      } catch (err) {
+        toast(err.message || 'Could not read Apple Health');
+        render();
+      }
+    },
     async 'sync-now'() {
       try {
         await syncNow();
@@ -1053,6 +1080,7 @@ export function init() {
   });
   window.addEventListener('online', () => render());
   window.addEventListener('offline', () => render());
+  initHealth(() => render());
   render();
   initNative();
   initCloud({

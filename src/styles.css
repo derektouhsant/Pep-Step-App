@@ -514,6 +514,20 @@ img {
   padding: 3px 8px;
 }
 
+.badge.health {
+  background: var(--navy);
+  color: var(--white);
+  white-space: nowrap;
+}
+
+.steps-num {
+  font-family: var(--display);
+  font-size: 42px;
+  line-height: 1.05;
+  color: var(--navy);
+  margin-top: 8px;
+}
+
 .set-table {
   width: 100%;
   border-collapse: collapse;

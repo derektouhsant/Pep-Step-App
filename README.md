@@ -145,6 +145,19 @@ In Supabase → **Authentication → URL configuration → Redirect URLs**, add:
 
 The iPhone must be able to open the mail link. The app exchanges the `code` for a session when iOS opens PepStep.
 
+### Apple Health (read-only)
+
+On iOS, Home can show today’s steps, active energy, and average heart rate, and Workouts history can list Watch workouts labeled **Apple Health**. Those imports are not copied into the PepStep log and are not uploaded to Supabase. The website hides this UI.
+
+The project already includes:
+
+- `ios/App/App/App.entitlements` with the HealthKit entitlement
+- `NSHealthShareUsageDescription` and `NSHealthUpdateUsageDescription` in `ios/App/App/Info.plist` (the update string says PepStep does not write; the app never requests write access)
+
+In Xcode, open the app target → **Signing & Capabilities**. If HealthKit is not listed, click **+ Capability** and add **HealthKit**. Leave clinical-records / health-records access off. The plugin is `@capgo/capacitor-health` (read: workouts, steps, heart rate, active energy). PepStep does not request write permission and does not call the plugin’s save method.
+
+HealthKit only works on a real iPhone. This repo was prepared on Linux, so the permission prompt and Watch import still need a device check.
+
 ## Deploy on Vercel
 
 This is a Vite static app. Import the GitHub repo in Vercel (or run `npx vercel`).

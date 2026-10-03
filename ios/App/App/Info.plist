@@ -35,6 +35,10 @@
 	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>PepStep reads workouts (including treadmill, walking, and running), active energy, heart rate, and steps from Apple Health so it can show them in the app. Access is read-only. PepStep does not write to Apple Health, sell this data, or use it for ads.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>PepStep does not write workouts, steps, or other data to Apple Health. The app only reads health data you choose to share.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
