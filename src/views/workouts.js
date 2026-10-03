@@ -1,3 +1,4 @@
+import { SHOW_WORKOUT_VIDEOS } from '../config.js';
 import { BODY_PARTS, bodyPartName, isCardio } from '../data/exercises.js';
 import { isTreadmillBlock, workoutTreadmillLines } from '../data/treadmill.js';
 import { esc, formatDuration, formatTime } from '../utils.js';
@@ -29,7 +30,7 @@ export function renderWorkouts(state, ui, catalog) {
   if (ui.workoutView === 'logger') return renderLogger(state, catalog);
   if (ui.workoutView === 'plans') return renderPlans(state);
   if (ui.workoutView === 'builder') return renderBuilder(ui);
-  if (ui.workoutView === 'videos') return renderVideos(ui, catalog);
+  if (SHOW_WORKOUT_VIDEOS && ui.workoutView === 'videos') return renderVideos(ui, catalog);
   return renderHome(state);
 }
 
@@ -73,10 +74,14 @@ function renderHome(state) {
         <h3>Plans</h3>
         <p>DIY or AI full-body coverage</p>
       </button>
-      <button class="tile" data-act="open-videos">
+      ${
+        SHOW_WORKOUT_VIDEOS
+          ? `<button class="tile" data-act="open-videos">
         <h3>Video library</h3>
-        <p>Form videos coming soon</p>
-      </button>
+        <p>Form videos</p>
+      </button>`
+          : ''
+      }
       <button class="tile" data-act="open-builder">
         <h3>Plan builder</h3>
         <p>Every body part, then save</p>

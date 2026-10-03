@@ -1,3 +1,4 @@
+import { SHOW_WORKOUT_VIDEOS } from './config.js';
 import { FOODS } from './data/foods.js';
 import { EXERCISES, BODY_PARTS, getExercise, exercisesByPart } from './data/exercises.js';
 import { formatBout, isTreadmillBlock, splitDuration, treadmillBout } from './data/treadmill.js';
@@ -92,7 +93,7 @@ function renderSheet() {
   if (s.type === 'food') return foodSheet(s);
   if (s.type === 'goals') return goalsSheet();
   if (s.type === 'entry') return entrySheet(s);
-  if (s.type === 'video') return videoSheet(s);
+  if (SHOW_WORKOUT_VIDEOS && s.type === 'video') return videoSheet(s);
   if (s.type === 'confirm-finish') return finishSheet();
   if (s.type === 'confirm-reset') return resetSheet();
   if (s.type === 'confirm-delete-account') return deleteAccountSheet();
@@ -755,6 +756,7 @@ function onClick(event) {
       render();
     },
     'open-videos'() {
+      if (!SHOW_WORKOUT_VIDEOS) return;
       ui.workoutView = 'videos';
       ui.search = '';
       render();
@@ -845,6 +847,7 @@ function onClick(event) {
       finishWorkout();
     },
     'play-video'() {
+      if (!SHOW_WORKOUT_VIDEOS) return;
       ui.sheet = { type: 'video', id: btn.dataset.id };
       render();
     },
