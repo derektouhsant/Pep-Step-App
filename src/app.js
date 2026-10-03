@@ -11,6 +11,7 @@ import { renderHome, firstEmptyMeal } from './views/home.js';
 import { renderWorkouts, missingParts } from './views/workouts.js';
 import { renderMore, renderInstallTip } from './views/more.js';
 import { legalPageFromPath, legalTitle, renderLegalPage } from './views/legal.js';
+import { renderOfflineBanner } from './views/offline.js';
 import {
   initCloud,
   getSyncInfo,
@@ -336,6 +337,7 @@ function showLegal(page, { push = true } = {}) {
 }
 
 export function render() {
+  document.getElementById('boot-splash')?.remove();
   const root = document.getElementById('app');
   if (legalPage) {
     document.title = legalTitle(legalPage);
@@ -346,7 +348,7 @@ export function render() {
   root.innerHTML = `
     <div class="app-frame">
       ${header()}
-      <main class="view">${installBannerHtml()}${viewHtml()}</main>
+      <main class="view">${renderOfflineBanner()}${installBannerHtml()}${viewHtml()}</main>
       ${tabbar()}
       ${renderSheet()}
       <div id="toast" class="toast" ${ui.toast ? '' : 'hidden'}>${esc(ui.toast)}</div>
@@ -1046,6 +1048,8 @@ export function init() {
     legalPage = legalPageFromPath(window.location.pathname);
     render();
   });
+  window.addEventListener('online', () => render());
+  window.addEventListener('offline', () => render());
   render();
   initCloud({
     getState: () => state,

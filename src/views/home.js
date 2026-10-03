@@ -92,7 +92,7 @@ function mealSnapshot(day) {
   const logged = MEALS.filter((meal) => (day.meals[meal.id] || []).length > 0);
   if (!logged.length) {
     return `
-      <p class="empty-meal">Nothing logged yet</p>
+      <p class="empty-meal">Nothing logged yet. Add a meal when you are ready.</p>
       <button class="add-food" data-act="home-log-food">Log food in Diary</button>
     `;
   }
@@ -233,5 +233,6 @@ export function renderHome(state) {
 
     ${workoutCard(state, today)}
     ${weekCard(state, today)}
+    <p class="fine-print">Not medical advice. PepStep is a log for meals and movement, not a diagnosis or treatment.</p>
   `;
 }

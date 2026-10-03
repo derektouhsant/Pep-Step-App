@@ -110,7 +110,7 @@ Magic links are one-time: each browser/profile needs its own email. Check spam i
 
 ## iPhone: Add to Home Screen
 
-PepStep is a mobile PWA (manifest, navy `#0A2540` theme color, 180px apple-touch-icon). It is built for Safari’s viewport, including safe-area padding above the home indicator.
+PepStep is a mobile PWA (manifest, navy `#0A2540` theme color, app icons, and a branded splash). It is built for Safari’s viewport, including safe-area padding for the notch and the home indicator. A short note on Home says the log is not medical advice. If the device is offline, a banner explains that saved logs still work and will sync later.
 
 1. Open the deployed site in **Safari** (not Chrome, and not an in-app browser).
 2. Tap the **Share** button.

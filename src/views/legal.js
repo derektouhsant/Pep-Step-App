@@ -1,4 +1,5 @@
 import { esc } from '../utils.js';
+import { renderOfflineBanner } from './offline.js';
 
 /** Placeholder until Derek replaces it before App Store submission. */
 export const SUPPORT_EMAIL = 'derektouhsant@gmail.com';
@@ -61,6 +62,7 @@ function shell(page, title, body) {
   return `
     <div class="legal-shell">
       <div class="legal-wrap">
+        ${renderOfflineBanner()}
         <header class="legal-brand">
           <div class="brand-name">PepStep</div>
           <div class="brand-tag">Longevity is Movement</div>

@@ -9,7 +9,8 @@
   --line: rgba(10, 37, 64, 0.1);
   --shadow: 0 10px 30px rgba(10, 37, 64, 0.08);
   --radius: 16px;
-  --tab-h: calc(64px + env(safe-area-inset-bottom, 0px));
+  --safe-b: max(8px, env(safe-area-inset-bottom, 0px));
+  --tab-h: calc(56px + var(--safe-b));
   --header-h: 56px;
   --font: 'Manrope', system-ui, sans-serif;
   --display: 'Fraunces', Georgia, serif;
@@ -938,7 +939,7 @@ img {
   bottom: 0;
   z-index: 30;
   height: var(--tab-h);
-  padding: 8px calc(8px + env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 8px)
+  padding: 6px calc(8px + env(safe-area-inset-right, 0px)) var(--safe-b)
     calc(8px + env(safe-area-inset-left, 0px));
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(12px);
@@ -999,7 +1000,8 @@ img {
   overflow: auto;
   background: var(--white);
   border-radius: 20px 20px 0 0;
-  padding: 12px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  padding: 12px calc(16px + env(safe-area-inset-right, 0px)) calc(16px + var(--safe-b))
+    calc(16px + env(safe-area-inset-left, 0px));
 }
 
 .grab {
@@ -1258,6 +1260,67 @@ img {
 
 .legal-back {
   margin-top: 16px;
+}
+
+.boot-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: calc(24px + env(safe-area-inset-top, 0px)) 24px calc(24px + env(safe-area-inset-bottom, 0px));
+  background: var(--navy);
+  color: var(--white);
+  text-align: center;
+}
+
+.boot-splash img {
+  width: 96px;
+  height: 96px;
+  border-radius: 22px;
+  margin-bottom: 8px;
+}
+
+.boot-splash strong {
+  font-family: var(--display);
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.boot-splash span {
+  color: var(--light);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.offline-banner {
+  background: var(--navy);
+  color: var(--white);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.fine-print {
+  margin: 16px 4px 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+  text-align: center;
+}
+
+.empty-help {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .back-row {
