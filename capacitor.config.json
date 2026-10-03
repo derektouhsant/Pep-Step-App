@@ -1,0 +1,23 @@
+{
+  "appId": "com.pepstep.app",
+  "appName": "PepStep",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0A2540",
+    "scheme": "capacitor"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "backgroundColor": "#0A2540",
+      "showSpinner": false,
+      "launchShowDuration": 0
+    },
+    "StatusBar": {
+      "overlaysWebView": true,
+      "style": "DARK",
+      "backgroundColor": "#0A2540"
+    }
+  }
+}

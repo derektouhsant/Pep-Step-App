@@ -62,7 +62,7 @@ npm run check-sync
 3. **Authentication → Providers → Email**: enable Email. Magic links are enough (no password UI in the app).
 4. **Authentication → URL configuration**
    - Site URL: your deployed origin (for example `https://your-app.vercel.app`)
-   - Redirect URLs: that origin **and** `http://localhost:5173/**` for local Vite
+   - Redirect URLs: that origin **and** `http://localhost:5173/**` for local Vite. For the iPhone app, also add `pepstep://auth/callback` (see below).
 5. **Settings → API**: copy **Project URL** and **anon public** key into `.env.local`:
 
 ```bash
@@ -84,6 +84,30 @@ Restart `npm run dev` after changing env vars.
 6. After sign-in, Diary and Workouts should show the same history.
 
 Magic links are one-time: each browser/profile needs its own email. Check spam if the message does not arrive.
+
+## iPhone app (Xcode)
+
+The website stays a Vite app. The `ios/` project is a Capacitor 8 shell around that same build so it can run on an iPhone with read-only Apple Health. Derek builds and signs it on a Mac. See the pull request for the full Mac checklist.
+
+```bash
+npm install
+cp .env.example .env.local
+# fill in the same Supabase URL and anon key used on Vercel
+npm run build:ios
+```
+
+Then open `ios/App/App.xcodeproj` in Xcode (Swift Package Manager, not CocoaPods).
+
+Bundle id in this repo is `com.pepstep.app`. Change `appId` in `capacitor.config.json` and the bundle identifier in Xcode before the first App Store submit if you want a different id.
+
+Magic-link sign-in inside the app returns through the custom URL scheme `pepstep://auth/callback`. In Supabase, **Authentication → URL Configuration → Redirect URLs**, add:
+
+- `pepstep://auth/callback`
+- `pepstep://**`
+
+Leave the existing website URLs in place (`https://pep-step-app.vercel.app/**` and `http://localhost:5173/**`). The website still redirects to its own origin. Universal Links are not used: they need a paid Apple Developer account and an Associated Domains file.
+
+Apple Health is iOS-only and read-only. Imported workouts and steps stay on the phone. They are not written into Supabase and they do not replace workouts logged in PepStep.
 
 ## iPhone: Add to Home Screen
 
@@ -110,4 +134,4 @@ Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the Vercel project envir
 
 ## Stack
 
-Vite + vanilla HTML/CSS/JS. Navy / light-blue PepStep palette. No orange or green accents. Optional Supabase Auth (email magic link) and Postgres tables for sync.
+Vite + vanilla HTML/CSS/JS, wrapped for iPhone with Capacitor 8. Navy / light-blue PepStep palette. No orange or green accents. Optional Supabase Auth (email magic link) and Postgres tables for sync. Apple Health is read-only and stays on device.

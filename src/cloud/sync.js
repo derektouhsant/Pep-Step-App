@@ -1,6 +1,10 @@
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { defaultState } from '../storage.js';
 import { getSupabase, isCloudConfigured } from './supabase.js';
 import { mergeStates } from './merge.js';
+
+export const NATIVE_AUTH_REDIRECT = 'pepstep://auth/callback';
 
 const A2HS_KEY = 'pepstep:a2hs-dismissed';
 
@@ -30,6 +34,7 @@ export function getSyncInfo() {
 
 export function isStandaloneApp() {
   if (typeof window === 'undefined') return false;
+  if (Capacitor.isNativePlatform()) return true;
   return (
     window.navigator.standalone === true ||
     window.matchMedia('(display-mode: standalone)').matches
@@ -349,6 +354,83 @@ export async function syncNow() {
   await hydrateFromCloud();
 }
 
+function authRedirectTo() {
+  if (Capacitor.isNativePlatform()) return NATIVE_AUTH_REDIRECT;
+  return window.location.origin;
+}
+
+const handledAuthCodes = new Set();
+
+function parseAuthCallback(url) {
+  if (!url || !url.startsWith('pepstep://')) return null;
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  const hash = new URLSearchParams((parsed.hash || '').replace(/^#/, ''));
+  return {
+    code: parsed.searchParams.get('code') || hash.get('code'),
+    accessToken: hash.get('access_token'),
+    refreshToken: hash.get('refresh_token'),
+    error:
+      parsed.searchParams.get('error_description') ||
+      hash.get('error_description') ||
+      parsed.searchParams.get('error') ||
+      hash.get('error') ||
+      '',
+  };
+}
+
+async function completeNativeAuth(url) {
+  const parsed = parseAuthCallback(url);
+  if (!parsed) return;
+  const supabase = getSupabase();
+  if (!supabase) return;
+  if (parsed.error) {
+    setStatus('error', parsed.error);
+    hooks.onChange();
+    return;
+  }
+  if (parsed.code) {
+    if (handledAuthCodes.has(parsed.code)) return;
+    handledAuthCodes.add(parsed.code);
+    const { error } = await supabase.auth.exchangeCodeForSession(parsed.code);
+    if (error) {
+      handledAuthCodes.delete(parsed.code);
+      setStatus('error', error.message || 'Could not finish sign-in');
+      hooks.onChange();
+    }
+    return;
+  }
+  if (parsed.accessToken && parsed.refreshToken) {
+    const { error } = await supabase.auth.setSession({
+      access_token: parsed.accessToken,
+      refresh_token: parsed.refreshToken,
+    });
+    if (error) {
+      setStatus('error', error.message || 'Could not finish sign-in');
+      hooks.onChange();
+    }
+  }
+}
+
+function listenForNativeAuth() {
+  if (!Capacitor.isNativePlatform()) return;
+  App.addListener('appUrlOpen', ({ url }) => {
+    completeNativeAuth(url).catch((err) => {
+      setStatus('error', err.message || 'Could not finish sign-in');
+      hooks.onChange();
+    });
+  });
+  App.getLaunchUrl()
+    .then((launch) => {
+      if (launch?.url) return completeNativeAuth(launch.url);
+    })
+    .catch(() => {});
+}
+
 export async function sendMagicLink(email) {
   const supabase = getSupabase();
   if (!supabase) throw new Error('Cloud sync is not configured');
@@ -357,7 +439,7 @@ export async function sendMagicLink(email) {
   const { error } = await supabase.auth.signInWithOtp({
     email: trimmed,
     options: {
-      emailRedirectTo: window.location.origin,
+      emailRedirectTo: authRedirectTo(),
       shouldCreateUser: true,
     },
   });
@@ -395,6 +477,8 @@ export async function initCloud(options) {
     hooks.onChange();
     return;
   }
+
+  listenForNativeAuth();
 
   supabase.auth.onAuthStateChange(async (event, session) => {
     applySession(session);

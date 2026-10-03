@@ -1103,6 +1103,53 @@ img {
   color: var(--muted);
 }
 
+.health-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: var(--pale);
+  color: var(--navy);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.steps-count {
+  margin: 6px 0 0;
+  font-family: var(--display);
+  font-size: 40px;
+  line-height: 1;
+  color: var(--navy);
+}
+
+.health-switch {
+  width: 52px;
+  height: 32px;
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--pale);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+}
+
+.health-switch span {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--white);
+  box-shadow: 0 1px 4px rgba(10, 37, 64, 0.25);
+}
+
+.health-switch.on {
+  justify-content: flex-end;
+  background: var(--navy);
+}
+
 .install-banner {
   display: flex;
   align-items: center;

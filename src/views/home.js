@@ -10,6 +10,7 @@ import {
   weekdayLetter,
 } from '../utils.js';
 import { workoutTreadmillLines } from '../data/treadmill.js';
+import { formatMiles, visibleHealthWorkouts } from '../health/model.js';
 import { dayTotals, MEALS, renderEnergyBlock } from './diary.js';
 
 function greeting() {
@@ -36,8 +37,8 @@ export function dayHasMeals(day) {
   return MEALS.some((meal) => (day?.meals?.[meal.id] || []).length > 0);
 }
 
-export function isActiveDay(state, iso) {
-  return dayHasMeals(viewDay(state, iso)) || workoutDaySet(state).has(iso);
+export function isActiveDay(state, iso, extraDays) {
+  return dayHasMeals(viewDay(state, iso)) || workoutDaySet(state).has(iso) || Boolean(extraDays?.has(iso));
 }
 
 export function firstEmptyMeal(day) {
@@ -57,14 +58,14 @@ export function lastSevenDays(today) {
   return Array.from({ length: 7 }, (_, i) => addDays(today, i - 6));
 }
 
-export function movementStreak(state, today) {
+export function movementStreak(state, today, extraDays) {
   let cursor = today;
-  if (!isActiveDay(state, today)) {
+  if (!isActiveDay(state, today, extraDays)) {
     cursor = addDays(today, -1);
-    if (!isActiveDay(state, cursor)) return 0;
+    if (!isActiveDay(state, cursor, extraDays)) return 0;
   }
   let n = 0;
-  while (isActiveDay(state, cursor) && n < 365) {
+  while (isActiveDay(state, cursor, extraDays) && n < 365) {
     n += 1;
     cursor = addDays(cursor, -1);
   }
@@ -166,10 +167,73 @@ function activeName(state) {
   return state.activeWorkout?.name || 'Workout';
 }
 
-function weekCard(state, today) {
+function healthDetail(workout) {
+  const parts = [];
+  const seconds = Number(workout.durationSec) || 0;
+  parts.push(seconds > 0 && seconds < 60 ? `${seconds} sec` : formatDuration(seconds * 1000));
+  const miles = formatMiles(workout.distanceMeters);
+  if (miles) parts.push(miles);
+  if (workout.avgHeartRate) parts.push(`${workout.avgHeartRate} bpm avg`);
+  if (workout.calories > 0) parts.push(`${workout.calories} cal`);
+  return parts.join(' · ');
+}
+
+function healthDaySet(workouts) {
+  const set = new Set();
+  for (const workout of workouts || []) {
+    if (workout.finishedAt) set.add(isoFromTs(workout.finishedAt));
+  }
+  return set;
+}
+
+function appleHealthHome(health, todayWorkouts, steps) {
+  if (!health?.supported) return '';
+  if (!health.enabled) {
+    return `
+      <section class="card">
+        <div class="row">
+          <div class="tiny">Apple Health</div>
+        </div>
+        <h3 class="home-card-title">Steps and Watch workouts</h3>
+        <p class="muted">Connect to show today's steps and walking, running, and treadmill workouts from Apple Health. PepStep only reads them, and they stay on this iPhone.</p>
+        <button class="steel-btn" style="width:100%;margin-top:12px" data-act="go-more">Connect in More</button>
+      </section>
+    `;
+  }
+
+  const stepLabel = steps == null ? '—' : Number(steps).toLocaleString();
+  const imported = todayWorkouts.length
+    ? todayWorkouts
+        .map(
+          (workout) => `
+        <div class="history-item">
+          <div class="row">
+            <strong>${esc(workout.name || 'Workout')}</strong>
+            <span class="health-badge">Apple Health</span>
+          </div>
+          <div class="muted">${esc(healthDetail(workout))}</div>
+        </div>`
+        )
+        .join('')
+    : `<p class="muted" style="margin:8px 0 0">No walking, running, or treadmill workouts from Apple Health today.</p>`;
+
+  return `
+    <section class="card">
+      <div class="row">
+        <div class="tiny">Apple Health</div>
+        <span class="health-badge">On this iPhone</span>
+      </div>
+      <div class="steps-count">${esc(stepLabel)}</div>
+      <p class="muted" style="margin:0">Steps today</p>
+      ${imported}
+    </section>
+  `;
+}
+
+function weekCard(state, today, extraDays) {
   const days = lastSevenDays(today);
-  const activeCount = days.filter((iso) => isActiveDay(state, iso)).length;
-  const streak = movementStreak(state, today);
+  const activeCount = days.filter((iso) => isActiveDay(state, iso, extraDays)).length;
+  const streak = movementStreak(state, today, extraDays);
   const streakLine =
     streak > 0
       ? `${streak} day${streak === 1 ? '' : 's'} in a row`
@@ -188,7 +252,7 @@ function weekCard(state, today) {
       <div class="week-row">
         ${days
           .map((iso) => {
-            const on = isActiveDay(state, iso);
+            const on = isActiveDay(state, iso, extraDays);
             const isToday = iso === today;
             return `
               <button class="week-day ${on ? 'on' : ''} ${isToday ? 'today' : ''}" data-act="go-diary-date" data-date="${esc(iso)}" aria-label="${esc(formatFullDate(iso))}">
@@ -202,13 +266,17 @@ function weekCard(state, today) {
   `;
 }
 
-export function renderHome(state) {
+export function renderHome(state, extras = {}) {
   const today = todayISO();
   const day = viewDay(state, today);
   const totals = dayTotals(day);
   const cups = Math.max(1, Number(state.goals.waterCups) || 8);
   const water = Number(day.water) || 0;
   const waterPct = cups > 0 ? Math.min(100, (water / cups) * 100) : 0;
+  const health = extras.health;
+  const imported = health?.supported && health.enabled ? visibleHealthWorkouts(health.workouts, state) : [];
+  const todayImported = imported.filter((workout) => workout.finishedAt && isoFromTs(workout.finishedAt) === today);
+  const extraDays = healthDaySet(imported);
 
   return `
     <div class="home-hello">
@@ -232,6 +300,7 @@ export function renderHome(state) {
     </section>
 
     ${workoutCard(state, today)}
-    ${weekCard(state, today)}
+    ${appleHealthHome(health, todayImported, health?.stepsToday)}
+    ${weekCard(state, today, extraDays)}
   `;
 }
