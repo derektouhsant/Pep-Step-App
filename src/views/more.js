@@ -127,6 +127,13 @@ export function renderMore(state, ui, cloud) {
     </section>
 
     <section class="card">
+      <div class="tiny">Policies</div>
+      <a class="link-out" href="/privacy" data-act="open-legal" data-page="privacy">Privacy policy</a>
+      <a class="link-out" href="/support" data-act="open-legal" data-page="support">Support</a>
+      <a class="link-out" href="/terms" data-act="open-legal" data-page="terms">Terms</a>
+    </section>
+
+    <section class="card">
       <div class="tiny">Links</div>
       <a class="link-out" href="https://pepstepguide.com" target="_blank" rel="noopener noreferrer">pepstepguide.com</a>
       <a class="link-out" href="mailto:support@pepstepguide.com">support@pepstepguide.com</a>

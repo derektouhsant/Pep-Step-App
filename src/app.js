@@ -9,6 +9,7 @@ import { renderDiary, MEALS, dayTotals, calorieProgress } from './views/diary.js
 import { renderHome, firstEmptyMeal } from './views/home.js';
 import { renderWorkouts, missingParts } from './views/workouts.js';
 import { renderMore, renderInstallTip } from './views/more.js';
+import { legalPageFromPath, legalTitle, renderLegalPage } from './views/legal.js';
 import {
   initCloud,
   getSyncInfo,
@@ -23,6 +24,7 @@ import {
 } from './cloud/sync.js';
 
 let state = loadState();
+let legalPage = legalPageFromPath(window.location.pathname);
 const ui = {
   tab: 'home',
   date: todayISO(),
@@ -321,8 +323,25 @@ function installBannerHtml() {
   return renderInstallTip({ compact: true });
 }
 
+function showLegal(page, { push = true } = {}) {
+  legalPage = page;
+  if (push) {
+    const next = page ? `/${page}` : '/';
+    if (window.location.pathname.replace(/\/+$/, '') !== next.replace(/\/+$/, '')) {
+      history.pushState({ legal: page }, '', next);
+    }
+  }
+  render();
+}
+
 export function render() {
   const root = document.getElementById('app');
+  if (legalPage) {
+    document.title = legalTitle(legalPage);
+    root.innerHTML = renderLegalPage(legalPage);
+    return;
+  }
+  document.title = 'PepStep — Put a Pep in Your Step';
   root.innerHTML = `
     <div class="app-frame">
       ${header()}
@@ -902,6 +921,14 @@ function onClick(event) {
       dismissA2hs();
       render();
     },
+    'open-legal'() {
+      const page = btn.dataset.page;
+      if (!page) return;
+      showLegal(page);
+    },
+    'close-legal'() {
+      showLegal(null);
+    },
     async 'sync-now'() {
       try {
         await syncNow();
@@ -1012,6 +1039,10 @@ export function init() {
   document.addEventListener('input', onInput);
   document.addEventListener('submit', onSubmit);
   document.addEventListener('keydown', onKey);
+  window.addEventListener('popstate', () => {
+    legalPage = legalPageFromPath(window.location.pathname);
+    render();
+  });
   render();
   initCloud({
     getState: () => state,
