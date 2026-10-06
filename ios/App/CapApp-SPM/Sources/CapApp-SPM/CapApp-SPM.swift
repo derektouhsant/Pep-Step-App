@@ -1,9 +1,9 @@
 import UIKit
 import Capacitor
-import CapacitorApp
-import CapacitorSplashScreen
-import CapacitorStatusBar
-import CapgoCapacitorHealth
+import AppPlugin
+import SplashScreenPlugin
+import StatusBarPlugin
+import HealthPlugin
 
 public let isCapacitorApp = true
 
