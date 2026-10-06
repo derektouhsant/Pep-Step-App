@@ -1,4 +1,5 @@
 import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { todayISO } from '../utils.js';
 import { isNativeIos } from '../native/platform.js';
 import { averageHeartRate, healthWorkoutTitle, isIndoorWorkout, isMovementWorkout } from './model.js';
@@ -179,11 +180,25 @@ async function queryStepsToday(Health) {
   return Math.max(0, Math.round(total));
 }
 
+function describeError(err, fallback) {
+  const message = typeof err === 'string' ? err : err?.message;
+  const text = message == null ? '' : String(message).trim();
+  return text || fallback;
+}
+
+function failConnect(message) {
+  snapshot.enabled = false;
+  snapshot.status = 'error';
+  snapshot.error = message;
+  writeEnabled(false);
+  notify();
+}
+
 export async function refreshHealth() {
   if (!isNativeIos() || !snapshot.enabled) return snapshot;
   const token = ++refreshToken;
-  const Health = await loadPlugin();
   try {
+    const Health = await loadPlugin();
     const [stepsToday, workouts] = await Promise.all([queryStepsToday(Health), queryMovementWorkouts(Health)]);
     await attachHeartRates(Health, workouts);
     if (token !== refreshToken || !snapshot.enabled) return snapshot;
@@ -202,7 +217,7 @@ export async function refreshHealth() {
   } catch (err) {
     if (token !== refreshToken || !snapshot.enabled) return snapshot;
     snapshot.status = 'error';
-    snapshot.error = err?.message || 'Could not read Apple Health';
+    snapshot.error = describeError(err, 'Could not read Apple Health');
     notify();
   }
   return snapshot;
@@ -213,27 +228,38 @@ export async function connectHealth() {
   snapshot.status = 'connecting';
   snapshot.error = '';
   notify();
-  const Health = await loadPlugin();
-  const availability = await Health.isAvailable();
-  if (!availability?.available) {
-    const message = availability?.reason || 'Apple Health is not available on this iPhone';
-    snapshot.enabled = false;
-    snapshot.status = 'error';
-    snapshot.error = message;
-    writeEnabled(false);
+  try {
+    if (!Capacitor.isPluginAvailable('Health')) {
+      throw new Error(
+        'Apple Health plugin is not registered in this iOS build. HealthPlugin was not linked, so iOS will not show the Health permission sheet.'
+      );
+    }
+    const Health = await loadPlugin();
+    const availability = await Health.isAvailable();
+    if (!availability?.available) {
+      const reason = availability?.reason || 'Apple Health is not available on this iPhone';
+      const message =
+        availability?.platform === 'web'
+          ? `Apple Health fell back to the web plugin on this iPhone. ${reason}`
+          : reason;
+      throw new Error(message);
+    }
+    await Health.requestAuthorization({
+      read: READ_TYPES,
+      write: [],
+    });
+    snapshot.enabled = true;
+    snapshot.status = 'on';
+    snapshot.error = '';
+    writeEnabled(true);
     notify();
+    await refreshHealth();
+    return snapshot;
+  } catch (err) {
+    const message = describeError(err, 'Could not open Apple Health');
+    failConnect(message);
     throw new Error(message);
   }
-  await Health.requestAuthorization({
-    read: READ_TYPES,
-    write: [],
-  });
-  snapshot.enabled = true;
-  snapshot.status = 'on';
-  writeEnabled(true);
-  notify();
-  await refreshHealth();
-  return snapshot;
 }
 
 export async function disconnectHealth() {

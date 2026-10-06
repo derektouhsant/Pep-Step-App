@@ -160,5 +160,17 @@ const offMore = renderMore(emptyState, { authEmail: '' }, { configured: false, s
   health: { ...health, enabled: false, status: 'off' },
 });
 assert(offMore.includes('aria-checked="false"'), 'switch can turn off');
+const failedMore = renderMore(emptyState, { authEmail: '' }, { configured: false, status: 'unconfigured', user: null }, {
+  native: true,
+  health: {
+    ...health,
+    enabled: false,
+    status: 'error',
+    error: 'Missing com.apple.developer.healthkit entitlement.',
+  },
+});
+assert(failedMore.includes('Missing com.apple.developer.healthkit entitlement.'), 'more shows the Health error under the switch');
+assert(failedMore.includes('data-health-error'), 'health error is marked in the card');
+assert(failedMore.includes('aria-checked="false"'), 'a failed request leaves the switch off');
 
 console.log('health checks ok');

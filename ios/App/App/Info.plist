@@ -65,6 +65,8 @@
 	<false/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>PepStep reads your steps, heart rate, active energy, and walking, running, and treadmill workouts from Apple Health so you can see them next to workouts you log in the app. PepStep does not write to Apple Health and does not use this information for medical advice.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>PepStep does not save steps, workouts, heart rate, or other data to Apple Health. iOS asks for this explanation when an app requests Health access. PepStep only reads.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
