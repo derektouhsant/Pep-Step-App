@@ -502,8 +502,8 @@ export async function endLocalSession() {
     await signOut({ local: true });
   } catch {
     clearSupabaseAuthStorage();
-    applySession(null);
   }
+  applySession(null);
 }
 
 function applySession(session) {
