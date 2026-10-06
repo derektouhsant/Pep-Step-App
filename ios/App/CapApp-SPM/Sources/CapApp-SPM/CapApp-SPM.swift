@@ -1,3 +1,5 @@
+import UIKit
+import Capacitor
 import CapacitorApp
 import CapacitorSplashScreen
 import CapacitorStatusBar
@@ -15,5 +17,15 @@ public enum CapacitorPluginRegistration {
         _ = SplashScreenPlugin.self
         _ = StatusBarPlugin.self
         _ = HealthPlugin.self
+    }
+}
+
+/// Registers Health on the bridge itself. Name lookup can still miss the class,
+/// and the web stub never calls HealthKit, so the app never appears in
+/// Settings → Health → Data Access & Devices. This instance is registered
+/// before the web view loads.
+public class PepStepBridgeViewController: CAPBridgeViewController {
+    public override func capacitorDidLoad() {
+        bridge?.registerPluginInstance(HealthPlugin())
     }
 }

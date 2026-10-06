@@ -1,5 +1,5 @@
 import { App } from '@capacitor/app';
-import { Capacitor } from '@capacitor/core';
+import { Health } from '@capgo/capacitor-health';
 import { todayISO } from '../utils.js';
 import { isNativeIos } from '../native/platform.js';
 import { averageHeartRate, healthWorkoutTitle, isIndoorWorkout, isMovementWorkout } from './model.js';
@@ -114,11 +114,6 @@ function normalizeWorkout(raw) {
   return draft;
 }
 
-async function loadPlugin() {
-  const { Health } = await import('@capgo/capacitor-health');
-  return Health;
-}
-
 async function queryMovementWorkouts(Health) {
   const startDate = new Date(Date.now() - LOOKBACK_MS).toISOString();
   const endDate = new Date().toISOString();
@@ -198,7 +193,6 @@ export async function refreshHealth() {
   if (!isNativeIos() || !snapshot.enabled) return snapshot;
   const token = ++refreshToken;
   try {
-    const Health = await loadPlugin();
     const [stepsToday, workouts] = await Promise.all([queryStepsToday(Health), queryMovementWorkouts(Health)]);
     await attachHeartRates(Health, workouts);
     if (token !== refreshToken || !snapshot.enabled) return snapshot;
@@ -229,18 +223,12 @@ export async function connectHealth() {
   snapshot.error = '';
   notify();
   try {
-    if (!Capacitor.isPluginAvailable('Health')) {
-      throw new Error(
-        'Apple Health plugin is not registered in this iOS build. HealthPlugin was not linked, so iOS will not show the Health permission sheet.'
-      );
-    }
-    const Health = await loadPlugin();
     const availability = await Health.isAvailable();
     if (!availability?.available) {
       const reason = availability?.reason || 'Apple Health is not available on this iPhone';
       const message =
         availability?.platform === 'web'
-          ? `Apple Health fell back to the web plugin on this iPhone. ${reason}`
+          ? `The Health permission request never reached iOS, so PepStep will not appear in Settings → Health → Data Access & Devices. ${reason}`
           : reason;
       throw new Error(message);
     }
