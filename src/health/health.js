@@ -250,7 +250,7 @@ export async function connectHealth() {
   }
 }
 
-export async function disconnectHealth() {
+export function clearHealthDeviceCache() {
   snapshot.enabled = false;
   snapshot.status = 'off';
   snapshot.error = '';
@@ -260,6 +260,10 @@ export async function disconnectHealth() {
   writeEnabled(false);
   clearCache();
   refreshToken += 1;
+}
+
+export async function disconnectHealth() {
+  clearHealthDeviceCache();
   notify();
   return snapshot;
 }

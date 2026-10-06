@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "check-data": "node scripts/check-data.js",
     "check-sync": "node scripts/check-sync.js",
+    "check-delete": "node scripts/check-delete-account.js",
     "check-health": "node scripts/check-health.js"
   },
   "devDependencies": {

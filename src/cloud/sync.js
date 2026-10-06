@@ -1,6 +1,7 @@
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { defaultState } from '../storage.js';
+import { DELETE_ACCOUNT_NOT_INSTALLED, isDeleteAccountMissing } from './deleteAccountError.js';
 import { getSupabase, isCloudConfigured } from './supabase.js';
 import { mergeStates } from './merge.js';
 
@@ -27,6 +28,25 @@ let pushTimer = 0;
 let pushChain = Promise.resolve();
 let hydrateChain = Promise.resolve();
 let started = false;
+let syncEpoch = 0;
+
+function invalidateSync() {
+  syncEpoch += 1;
+  clearTimeout(pushTimer);
+}
+
+function clearSupabaseAuthStorage() {
+  try {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('sb-') && key.includes('auth')) keys.push(key);
+    }
+    for (const key of keys) localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
 
 export function getSyncInfo() {
   return syncInfo;
@@ -296,13 +316,15 @@ function hydrateFromCloud() {
 }
 
 async function runHydrate() {
+  const epoch = syncEpoch;
   const supabase = getSupabase();
   const user = syncInfo.user;
-  if (!supabase || !user) return;
+  if (!supabase || !user || epoch !== syncEpoch) return;
 
   setStatus('syncing');
   try {
     const cloud = await cloudStateFromTables(supabase, user.id);
+    if (epoch !== syncEpoch) return;
     const local = hooks.getState();
     const localOwner = local.meta?.userId || null;
     let next;
@@ -312,29 +334,35 @@ async function runHydrate() {
       next = mergeStates(local, cloud);
     }
     next.meta = { ...(next.meta || {}), userId: user.id, savedAt: Date.now() };
+    if (epoch !== syncEpoch) return;
     hooks.setState(next, { sync: false });
     await pushStateToCloud(supabase, user.id, next);
+    if (epoch !== syncEpoch) return;
     syncInfo.lastSyncedAt = Date.now();
     setStatus('synced');
     hooks.onChange();
   } catch (err) {
+    if (epoch !== syncEpoch) return;
     setStatus('error', err.message || 'Sync failed');
     hooks.onChange();
   }
 }
 
 async function flushPush() {
+  const epoch = syncEpoch;
   const supabase = getSupabase();
   const user = syncInfo.user;
-  if (!supabase || !user) return;
+  if (!supabase || !user || epoch !== syncEpoch) return;
   const snapshot = hooks.getState();
   snapshot.meta = { ...(snapshot.meta || {}), userId: user.id };
   setStatus('syncing');
   try {
     await pushStateToCloud(supabase, user.id, snapshot);
+    if (epoch !== syncEpoch) return;
     syncInfo.lastSyncedAt = Date.now();
     setStatus('synced');
   } catch (err) {
+    if (epoch !== syncEpoch) return;
     setStatus('error', err.message || 'Sync failed');
   }
 }
@@ -446,11 +474,36 @@ export async function sendMagicLink(email) {
   if (error) throw error;
 }
 
-export async function signOut() {
+export async function deleteOwnAccount() {
+  const supabase = getSupabase();
+  if (!supabase || !syncInfo.user) throw new Error('Sign in before deleting your account');
+  invalidateSync();
+  const { error } = await supabase.rpc('delete_own_account');
+  if (!error) return;
+  if (syncInfo.status === 'syncing' || syncInfo.status === 'pending') {
+    syncInfo.status = syncInfo.lastSyncedAt ? 'synced' : 'offline';
+  }
+  if (isDeleteAccountMissing(error)) throw new Error(DELETE_ACCOUNT_NOT_INSTALLED);
+  throw new Error(error.message || 'Could not delete account');
+}
+
+export async function signOut(options = {}) {
   const supabase = getSupabase();
   if (!supabase) return;
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+  const { error } = await supabase.auth.signOut(options.local ? { scope: 'local' } : undefined);
+  if (error) {
+    if (options.local) clearSupabaseAuthStorage();
+    throw error;
+  }
+}
+
+export async function endLocalSession() {
+  try {
+    await signOut({ local: true });
+  } catch {
+    clearSupabaseAuthStorage();
+  }
+  applySession(null);
 }
 
 function applySession(session) {

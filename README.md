@@ -17,7 +17,7 @@ Peptide catalog, logbook, reminders, shop, and regimen tools are **intentionally
 1. **Home** (default) — today overview of diary nutrition (calories left, macros, water, meal snapshot) and workouts (none / in progress / finished), plus a light 7-day movement glance from existing logs. Cards and CTAs jump into Diary or Workouts.
 2. **Diary** — calorie ring, macro bars, meals, water cups, editable goals, sample foods + custom entries
 3. **Workouts** — start / resume / finish, previous performance, browse ~200 exercises by body part, DIY or AI plan builder, video placeholders. **Treadmill** (Cardio) logs incline, speed (mph), and time with scroll wheels. Other cardio still logs minutes and calories. Strength stays sets, reps, and load.
-4. **More** — account / cloud sync, Add to Home Screen tip, brand, [pepstepguide.com](https://pepstepguide.com), [support@pepstepguide.com](mailto:support@pepstepguide.com), not-medical-advice disclaimer
+4. **More** — account / cloud sync, delete account (when signed in), Add to Home Screen tip, brand, [privacy policy](https://pep-step-app.vercel.app/privacy), [pepstepguide.com](https://pepstepguide.com), [support@pepstepguide.com](mailto:support@pepstepguide.com), not-medical-advice disclaimer
 
 ## Offline vs cloud
 
@@ -59,11 +59,12 @@ npm run check-sync
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the dashboard open **SQL Editor**, paste `supabase/migrations/001_pepstep_sync.sql`, and run it. That creates tables plus row-level security so each user can only read/write their own rows.
-3. **Authentication → Providers → Email**: enable Email. Magic links are enough (no password UI in the app).
-4. **Authentication → URL configuration**
+3. In the same SQL editor, paste `supabase/migrations/002_delete_account.sql` and run it. That adds `delete_own_account()`, which the signed-in user calls from **More → Delete account**. The function deletes that auth user and their PepStep rows. The app never receives the service role key. Until this script has been run, Delete account shows an error and leaves the account and on-device data in place.
+4. **Authentication → Providers → Email**: enable Email. Magic links are enough (no password UI in the app).
+5. **Authentication → URL configuration**
    - Site URL: your deployed origin (for example `https://your-app.vercel.app`)
    - Redirect URLs: that origin **and** `http://localhost:5173/**` for local Vite. For the iPhone app, also add `pepstep://auth/callback` (see below).
-5. **Settings → API**: copy **Project URL** and **anon public** key into `.env.local`:
+6. **Settings → API**: copy **Project URL** and **anon public** key into `.env.local`:
 
 ```bash
 VITE_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
@@ -131,6 +132,8 @@ This is a Vite static app. Import the GitHub repo in Vercel (or run `npx vercel`
 | Output directory | `dist` |
 
 Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the Vercel project environment variables, then redeploy. Also add the Vercel origin to Supabase redirect URLs.
+
+The privacy policy is a public page at `/privacy` (https://pep-step-app.vercel.app/privacy). It loads without sign-in. `vercel.json` rewrites that path to the app so the Vite build can render it. The More tab and the sign-in form link to it. Inside the iPhone app the link opens the same page in the web view.
 
 ## Stack
 
