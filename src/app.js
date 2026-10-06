@@ -9,18 +9,21 @@ import { renderDiary, MEALS, dayTotals, calorieProgress } from './views/diary.js
 import { renderHome, firstEmptyMeal } from './views/home.js';
 import { renderWorkouts, missingParts } from './views/workouts.js';
 import { renderMore, renderInstallTip } from './views/more.js';
+import { isPrivacyPath, privacyHref, renderPrivacy } from './privacy.js';
 import {
   initCloud,
   getSyncInfo,
   schedulePush,
   sendMagicLink,
   signOut,
+  endLocalSession,
+  deleteOwnAccount,
   dismissA2hs,
   isStandaloneApp,
   clearCloudData,
   syncNow,
 } from './cloud/sync.js';
-import { connectHealth, disconnectHealth, getHealthSnapshot, initHealth } from './health/health.js';
+import { clearHealthDeviceCache, connectHealth, disconnectHealth, getHealthSnapshot, initHealth } from './health/health.js';
 import { isNativeApp, initNativeShell } from './native/platform.js';
 
 let state = loadState();
@@ -35,6 +38,9 @@ const ui = {
   builder: { name: '', exercises: [], source: 'diy' },
   builderReturn: 'workout',
   authEmail: '',
+  screen: 'app',
+  privacyFromApp: false,
+  accountNotice: '',
 };
 
 let toastTimer = 0;
@@ -58,14 +64,14 @@ function day() {
   return d;
 }
 
-export function toast(message) {
+export function toast(message, duration = 2200) {
   ui.toast = message;
   paintToast();
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     ui.toast = '';
     paintToast();
-  }, 2200);
+  }, duration);
 }
 
 function paintToast() {
@@ -94,6 +100,8 @@ function renderSheet() {
   if (s.type === 'video') return videoSheet(s);
   if (s.type === 'confirm-finish') return finishSheet();
   if (s.type === 'confirm-reset') return resetSheet();
+  if (s.type === 'confirm-delete-account') return deleteAccountSheet();
+  if (s.type === 'confirm-delete-account-final') return deleteAccountFinalSheet(s);
   return '';
 }
 
@@ -227,6 +235,36 @@ function finishSheet() {
   `;
 }
 
+function deleteAccountSheet() {
+  return `
+    <div class="overlay" data-act="close-sheet">
+      <div class="sheet" data-stop>
+        <div class="grab"></div>
+        <h3 style="margin:0 0 8px;color:var(--navy)">Delete account?</h3>
+        <p class="muted">This permanently deletes your PepStep account and all synced diary and workout data. It cannot be undone.</p>
+        <button type="button" class="primary-btn" data-act="delete-account-continue">Continue</button>
+        <button type="button" class="text-btn" style="width:100%;margin-top:8px" data-act="close-sheet">Cancel</button>
+      </div>
+    </div>
+  `;
+}
+
+function deleteAccountFinalSheet(s) {
+  const busy = Boolean(s.busy);
+  return `
+    <div class="overlay" data-act="close-sheet">
+      <div class="sheet" data-stop>
+        <div class="grab"></div>
+        <h3 style="margin:0 0 8px;color:var(--navy)">Permanently delete your account?</h3>
+        <p class="muted">Your sign-in and every synced diary entry, custom food, workout, and plan will be deleted. It cannot be undone.</p>
+        ${s.error ? `<p class="warn" data-delete-error>${esc(s.error)}</p>` : ''}
+        <button type="button" class="danger-btn" data-act="confirm-delete-account" ${busy ? 'disabled' : ''}>${busy ? 'Deleting account…' : 'Delete account'}</button>
+        <button type="button" class="text-btn" style="width:100%;margin-top:8px" data-act="close-sheet" ${busy ? 'disabled' : ''}>Cancel</button>
+      </div>
+    </div>
+  `;
+}
+
 function resetSheet() {
   const signedIn = Boolean(getSyncInfo().user);
   return `
@@ -297,7 +335,13 @@ function viewHtml() {
   const health = getHealthSnapshot();
   if (ui.tab === 'home') return renderHome(state, { health });
   if (ui.tab === 'workouts') return renderWorkouts(state, ui, EXERCISES, { health });
-  if (ui.tab === 'more') return renderMore(state, ui, getSyncInfo(), { health, native: isNativeApp() });
+  if (ui.tab === 'more') {
+    return renderMore(state, ui, getSyncInfo(), {
+      health,
+      native: isNativeApp(),
+      privacyHref: privacyHref(isNativeApp()),
+    });
+  }
   return renderDiary(state, ui, day());
 }
 
@@ -309,6 +353,12 @@ function installBannerHtml() {
 
 export function render() {
   const root = document.getElementById('app');
+  if (ui.screen === 'privacy') {
+    document.title = 'Privacy policy — PepStep';
+    root.innerHTML = renderPrivacy({ fromApp: ui.privacyFromApp });
+    return;
+  }
+  document.title = 'PepStep — Put a Pep in Your Step';
   root.innerHTML = `
     <div class="app-frame">
       ${header()}
@@ -495,6 +545,7 @@ function onClick(event) {
   const overlay = event.target.closest('.overlay');
   const stop = event.target.closest('[data-stop]');
   if (overlay && !stop) {
+    if (ui.sheet?.busy) return;
     ui.sheet = null;
     render();
     return;
@@ -503,6 +554,9 @@ function onClick(event) {
   const btn = event.target.closest('[data-act]');
   if (!btn) return;
   const act = btn.dataset.act;
+  if (act === 'open-privacy' && (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)) {
+    return;
+  }
 
   const actions = {
     tab() {
@@ -575,7 +629,27 @@ function onClick(event) {
       render();
     },
     'close-sheet'() {
+      if (ui.sheet?.busy) return;
       ui.sheet = null;
+      render();
+    },
+    'open-privacy'() {
+      ui.sheet = null;
+      ui.privacyFromApp = true;
+      ui.screen = 'privacy';
+      if (!isNativeApp() && !isPrivacyPath(window.location.pathname)) {
+        history.pushState({ pepstep: 'privacy' }, '', '/privacy');
+      }
+      render();
+    },
+    'close-privacy'() {
+      const fromApp = ui.privacyFromApp;
+      ui.screen = 'app';
+      ui.privacyFromApp = false;
+      if (!isNativeApp() && isPrivacyPath(window.location.pathname)) {
+        if (fromApp) history.back();
+        else history.pushState({ pepstep: 'app' }, '', '/');
+      }
       render();
     },
     'pick-food'() {
@@ -821,6 +895,48 @@ function onClick(event) {
       ui.sheet = { type: 'confirm-reset' };
       render();
     },
+    'delete-account'() {
+      if (!getSyncInfo().user) return;
+      ui.sheet = { type: 'confirm-delete-account' };
+      render();
+    },
+    'delete-account-continue'() {
+      ui.sheet = { type: 'confirm-delete-account-final', error: '', busy: false };
+      render();
+    },
+    async 'confirm-delete-account'() {
+      if (!getSyncInfo().user || ui.sheet?.busy) return;
+      ui.sheet = { type: 'confirm-delete-account-final', error: '', busy: true };
+      render();
+      try {
+        await deleteOwnAccount();
+      } catch (err) {
+        ui.sheet = {
+          type: 'confirm-delete-account-final',
+          error: err.message || 'Could not delete account',
+          busy: false,
+        };
+        render();
+        return;
+      }
+      await endLocalSession();
+      clearLocalState();
+      clearHealthDeviceCache();
+      state = defaultState();
+      ui.sheet = null;
+      ui.tab = 'more';
+      ui.screen = 'app';
+      ui.privacyFromApp = false;
+      ui.date = todayISO();
+      ui.workoutView = 'home';
+      ui.search = '';
+      ui.authEmail = '';
+      ui.builder = { name: '', exercises: [], source: 'diy' };
+      ui.accountNotice =
+        'Your PepStep account was deleted. Synced diary and workout data was removed, and PepStep data on this device was cleared.';
+      toast('Account deleted', 5000);
+      render();
+    },
     async 'confirm-reset'() {
       try {
         if (getSyncInfo().user) await clearCloudData();
@@ -976,7 +1092,7 @@ function onSubmit(event) {
 }
 
 function onKey(event) {
-  if (event.key === 'Escape' && ui.sheet) {
+  if (event.key === 'Escape' && ui.sheet && !ui.sheet.busy) {
     ui.sheet = null;
     render();
   }
@@ -987,6 +1103,13 @@ export function init() {
   document.addEventListener('input', onInput);
   document.addEventListener('submit', onSubmit);
   document.addEventListener('keydown', onKey);
+  if (!isNativeApp() && isPrivacyPath(window.location.pathname)) ui.screen = 'privacy';
+  window.addEventListener('popstate', () => {
+    ui.privacyFromApp = false;
+    ui.screen = !isNativeApp() && isPrivacyPath(window.location.pathname) ? 'privacy' : 'app';
+    ui.sheet = null;
+    render();
+  });
   initNativeShell();
   render();
   initCloud({

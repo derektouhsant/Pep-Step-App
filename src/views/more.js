@@ -51,7 +51,11 @@ function syncTime(cloud) {
   }
 }
 
-export function renderAccount(cloud, ui) {
+function privacyLink(href) {
+  return `<a class="privacy-inline" href="${esc(href)}" data-act="open-privacy">Privacy policy</a>`;
+}
+
+export function renderAccount(cloud, ui, privacyHref = '/privacy') {
   const status = syncLabel(cloud);
   const tone =
     cloud.status === 'error' ? 'err' : cloud.status === 'synced' ? 'ok' : cloud.user ? 'pending' : 'off';
@@ -80,8 +84,8 @@ export function renderAccount(cloud, ui) {
         <p class="disclaimer">${esc(cloud.user.email || 'Magic link session')}</p>
         <p class="muted">${esc(syncTime(cloud) || 'Backing up diary, goals, and workouts.')}</p>
         ${cloud.error ? `<p class="warn">${esc(cloud.error)}</p>` : ''}
-        <button class="steel-btn" style="width:100%;margin-top:12px" data-act="sync-now">Sync now</button>
-        <button class="text-btn" style="width:100%;margin-top:8px" data-act="sign-out">Sign out</button>
+        <button type="button" class="steel-btn" style="width:100%;margin-top:12px" data-act="sync-now">Sync now</button>
+        <button type="button" class="text-btn" style="width:100%;margin-top:8px" data-act="sign-out">Sign out</button>
       </section>
     `;
   }
@@ -93,6 +97,7 @@ export function renderAccount(cloud, ui) {
         <strong>Cloud backup</strong>
         <span class="sync-pill ${tone}" data-sync-pill>${esc(status)}</span>
       </div>
+      ${ui.accountNotice ? `<p class="account-notice" data-account-notice>${esc(ui.accountNotice)}</p>` : ''}
       <p class="disclaimer">Sign in with a magic link to sync diary and workouts across devices. Until then, this browser keeps an offline localStorage copy.</p>
       <form data-auth-form>
       <div class="field">
@@ -102,6 +107,17 @@ export function renderAccount(cloud, ui) {
       <button class="primary-btn" type="submit">Email me a magic link</button>
       </form>
       ${cloud.error ? `<p class="warn" style="margin-top:12px">${esc(cloud.error)}</p>` : ''}
+      <p class="disclaimer" style="margin-top:14px">${privacyLink(privacyHref)}</p>
+    </section>
+  `;
+}
+
+function renderDeleteAccount() {
+  return `
+    <section class="card" data-delete-account>
+      <div class="tiny">Delete account</div>
+      <p class="disclaimer">Permanently deletes your PepStep account and all synced diary and workout data. This cannot be undone.</p>
+      <button type="button" class="danger-btn" data-act="delete-account">Delete account</button>
     </section>
   `;
 }
@@ -137,6 +153,7 @@ export function renderHealthCard(health) {
 
 export function renderMore(state, ui, cloud, extras = {}) {
   const native = Boolean(extras.native);
+  const href = extras.privacyHref || '/privacy';
   return `
     <section class="card more-hero">
       <div class="tiny">PepStep Guide &amp; Research</div>
@@ -146,7 +163,8 @@ export function renderMore(state, ui, cloud, extras = {}) {
       <p class="muted">Family owned · Veteran owned</p>
     </section>
 
-    ${renderAccount(cloud, ui)}
+    ${renderAccount(cloud, ui, href)}
+    ${cloud.user ? renderDeleteAccount() : ''}
     ${renderHealthCard(extras.health)}
     ${native ? '' : renderInstallTip()}
 
@@ -158,6 +176,7 @@ export function renderMore(state, ui, cloud, extras = {}) {
     <section class="card">
       <div class="tiny">Links</div>
       <a class="link-out" href="https://pepstepguide.com" target="_blank" rel="noopener noreferrer">pepstepguide.com</a>
+      <a class="link-out" href="${esc(href)}" data-act="open-privacy">Privacy policy</a>
       <a class="link-out" href="mailto:support@pepstepguide.com">support@pepstepguide.com</a>
     </section>
 
