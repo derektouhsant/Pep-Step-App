@@ -107,7 +107,7 @@ Magic-link sign-in inside the app returns through the custom URL scheme `pepstep
 
 Leave the existing website URLs in place (`https://pep-step-app.vercel.app/**` and `http://localhost:5173/**`). The website still redirects to its own origin. Universal Links are not used: they need a paid Apple Developer account and an Associated Domains file.
 
-Apple Health is iOS-only and read-only. Imported workouts and steps stay on the phone. They are not written into Supabase and they do not replace workouts logged in PepStep.
+Apple Health is iOS-only and read-only. Imported workouts and steps stay on the phone. They are not written into Supabase and they do not replace workouts logged in PepStep. If the More switch cannot connect, the error text stays under the switch. `NSHealthUpdateUsageDescription` is present because iOS asks for it during the Health permission request; PepStep still sends an empty write list and never saves samples.
 
 ## iPhone: Add to Home Screen
 

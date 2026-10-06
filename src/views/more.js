@@ -115,13 +115,13 @@ export function renderHealthCard(health) {
       <div class="tiny">Apple Health</div>
       <div class="row" style="margin:8px 0 10px">
         <strong>Read workouts and steps</strong>
-        <button class="health-switch ${on ? 'on' : ''}" data-act="toggle-health" role="switch" aria-checked="${on ? 'true' : 'false'}" aria-label="Apple Health ${on ? 'on' : 'off'}">
+        <button type="button" class="health-switch ${on ? 'on' : ''}" data-act="toggle-health" role="switch" aria-checked="${on ? 'true' : 'false'}" aria-label="Apple Health ${on ? 'on' : 'off'}">
           <span></span>
         </button>
       </div>
       <p class="disclaimer">${esc(status)}. PepStep can read steps, heart rate, active energy, and walking, running, and treadmill workouts. Nothing is written to Apple Health. Imported workouts stay on this iPhone and are not copied to your account.</p>
       <p class="muted">Turning this off hides Apple Health data in PepStep. To stop sharing with the Health app, open Health → Sharing → Apps → PepStep.</p>
-      ${health.error ? `<p class="warn">${esc(health.error)}</p>` : ''}
+      ${health.error ? `<p class="warn" data-health-error>${esc(health.error)}</p>` : ''}
       ${
         on &&
         health.status !== 'connecting' &&
