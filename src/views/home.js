@@ -12,6 +12,8 @@ import {
 import { workoutTreadmillLines } from '../data/treadmill.js';
 import { formatMiles, visibleHealthWorkouts } from '../health/model.js';
 import { dayTotals, MEALS, renderEnergyBlock } from './diary.js';
+import { activeProgramPlan } from '../program.js';
+import { renderTodayProgramCard } from './programCard.js';
 
 function greeting() {
   const h = new Date().getHours();
@@ -131,14 +133,16 @@ function workoutCard(state, today) {
     : 'No sessions yet. Start whenever you are ready.';
 
   if (status.kind === 'progress') {
+    const active = state.activeWorkout;
+    const weekLine = active?.programWeek ? `Week ${active.programWeek} of 16 · ` : '';
     return `
       <section class="card hero-card">
         <div class="row">
-          <div class="tiny">Workouts</div>
+          <div class="tiny">Today's workout</div>
           <span class="status-pill live">${esc(status.label)}</span>
         </div>
         <h3 class="home-card-title">${esc(activeName(state))}</h3>
-        <p class="muted">${lastLine}</p>
+        <p class="muted">${weekLine}${lastLine}</p>
         <div class="grid-2" style="margin-top:12px">
           <button class="steel-btn" data-act="open-logger">Resume</button>
           <button class="steel-btn" data-act="go-workouts" style="background:transparent;border:1px solid rgba(255,255,255,.35)">Open Workouts</button>
@@ -147,18 +151,20 @@ function workoutCard(state, today) {
     `;
   }
 
+  const program = activeProgramPlan(state);
+  if (program) return renderTodayProgramCard(program, today);
+
   return `
     <section class="card">
       <div class="row">
         <div class="tiny">Workouts</div>
         <span class="status-pill ${status.kind}">${esc(status.label)}</span>
       </div>
-      <h3 class="home-card-title">${status.kind === 'done' ? 'Session in the books' : 'Ready when you are'}</h3>
-      <p class="muted">${lastLine}</p>
-      <button class="${status.kind === 'done' ? 'steel-btn' : 'primary-btn'}" style="width:100%;margin-top:12px" data-act="start-workout">${
-        status.kind === 'done' ? 'Start another' : 'Start workout'
-      }</button>
-      <button class="text-btn" style="width:100%;margin-top:8px" data-act="go-workouts">Open Workouts</button>
+      <h3 class="home-card-title">Build a 16-week plan</h3>
+      <p class="muted">One tap builds four months of movement. About 4 days a week, with strength work and treadmill time.</p>
+      <button class="cta-btn" data-act="build-program">Build my 4-month plan</button>
+      <p class="muted" style="margin:12px 0 0">${lastLine}</p>
+      <button class="text-btn" style="width:100%;margin-top:8px" data-act="start-workout">Start an empty workout</button>
     </section>
   `;
 }

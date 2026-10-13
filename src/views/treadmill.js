@@ -129,6 +129,7 @@ export function renderTreadmillBlock(ex, ei, prev) {
         </div>
         <button class="danger" data-act="remove-exercise" data-ei="${ei}">Remove</button>
       </div>
+      ${ex.target ? `<div class="prev-line">Target: ${esc(ex.target)}</div>` : ''}
       <div class="prev-line">${prevLine ? esc(prevLine) : 'No previous performance yet'}</div>
       ${bouts}
       <button class="text-btn" data-act="add-set" data-ei="${ei}">+ Add bout</button>

@@ -288,6 +288,8 @@ export async function pushStateToCloud(supabase, userId, state) {
     user_id: userId,
     name: plan.name || 'Plan',
     source: plan.source || 'diy',
+    // DIY and AI plans store an exercise array. The 16-week program stores
+    // its weeks, prescriptions, and cursor as a jsonb object ({ kind: 'program' }).
     exercises: plan.exercises || [],
     created_at: toIso(plan.createdAt) || now,
     updated_at: now,
