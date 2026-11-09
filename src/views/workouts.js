@@ -1,12 +1,15 @@
 import { BODY_PARTS, bodyPartName, isCardio } from '../data/exercises.js';
 import { isTreadmillBlock, workoutTreadmillLines } from '../data/treadmill.js';
 import { formatMiles, visibleHealthWorkouts } from '../health/model.js';
-import { esc, formatDuration, formatTime } from '../utils.js';
+import { activeProgramPlan, isProgramPlan, programDoc, resolveToday } from '../program.js';
+import { esc, formatDuration, formatTime, todayISO } from '../utils.js';
 import { icons } from '../icons.js';
 import { renderTreadmillBlock } from './treadmill.js';
+import { renderPhasePills, renderTodayProgramCard } from './programCard.js';
 
 export function coverageSet(exercises) {
-  return new Set((exercises || []).map((e) => e.bodyPart));
+  const list = Array.isArray(exercises) ? exercises : [];
+  return new Set(list.map((e) => e.bodyPart));
 }
 
 export function missingParts(exercises) {
@@ -29,6 +32,7 @@ export function renderWorkouts(state, ui, catalog, extras = {}) {
   if (ui.workoutView === 'browse') return renderBrowse(ui, catalog);
   if (ui.workoutView === 'logger') return renderLogger(state, catalog);
   if (ui.workoutView === 'plans') return renderPlans(state);
+  if (ui.workoutView === 'program') return renderProgram(state);
   if (ui.workoutView === 'builder') return renderBuilder(ui);
   if (ui.workoutView === 'videos') return renderVideos(ui, catalog);
   return renderHome(state, extras.health);
@@ -102,6 +106,7 @@ function renderHome(state, health) {
         ? `<section class="card hero-card">
             <div class="tiny">In progress</div>
             <h2 style="margin:6px 0 4px;font-size:20px">${esc(active.name || 'Workout')}</h2>
+            ${active.programWeek ? `<p class="muted" style="margin:0">Week ${active.programWeek} of 16</p>` : ''}
             <p class="muted">Started ${esc(formatTime(active.startedAt))} · ${(active.exercises || []).length} exercises${
               workoutTreadmillLines(active).length
                 ? ` · ${esc(workoutTreadmillLines(active).join(' · '))}`
@@ -112,11 +117,14 @@ function renderHome(state, health) {
               <button class="steel-btn" data-act="finish-workout" style="background:transparent;border:1px solid rgba(255,255,255,.35)">Finish</button>
             </div>
           </section>`
-        : `<section class="card hero-card">
+        : activeProgramPlan(state)
+          ? renderTodayProgramCard(activeProgramPlan(state), todayISO())
+          : `<section class="card hero-card">
             <div class="tiny">Workouts</div>
             <h2 style="margin:6px 0 4px;font-size:20px">Ready when you are</h2>
-            <p class="muted">Log sets or a treadmill bout, browse by body part, or start a full-coverage plan.</p>
-            <button class="steel-btn" style="margin-top:12px;width:100%" data-act="start-workout">Start workout</button>
+            <p class="muted">One tap builds four months of movement at home. Bodyweight practice and treadmill time, three days on and one day of rest.</p>
+            <button class="cta-btn" data-act="build-program">Build my 4-month plan</button>
+            <button class="steel-btn" style="margin-top:8px;width:100%;background:transparent;border:1px solid rgba(255,255,255,.35)" data-act="start-workout">Start an empty workout</button>
           </section>`
     }
 
@@ -127,7 +135,7 @@ function renderHome(state, health) {
       </button>
       <button class="tile" data-act="open-plans">
         <h3>Plans</h3>
-        <p>DIY or AI full-body coverage</p>
+        <p>16-week plan, DIY, or AI</p>
       </button>
       <button class="tile" data-act="open-videos">
         <h3>Video library</h3>
@@ -241,6 +249,7 @@ function renderLogger(state, catalog) {
             </div>
             <button class="danger" data-act="remove-exercise" data-ei="${ei}">Remove</button>
           </div>
+          ${ex.target ? `<div class="prev-line">Target: ${esc(ex.target)}</div>` : ''}
           ${prevLine}
           <table class="set-table">
             <thead>
@@ -261,23 +270,60 @@ function renderLogger(state, catalog) {
 
   return `
     ${backBtn()}
-    <div class="row" style="margin-bottom:10px">
+    <div class="row" style="margin-bottom:${w.programWeek ? '4px' : '10px'}">
       <h2 style="margin:0;color:var(--navy)">${esc(w.name || 'Workout')}</h2>
       <button class="steel-btn" data-act="finish-workout">Finish</button>
     </div>
+    ${w.programWeek ? `<p class="muted" style="margin:0 0 10px">Week ${w.programWeek} of 16</p>` : ''}
     ${blocks || `<section class="card"><p class="muted">Add an exercise to start logging sets.</p></section>`}
     <button class="primary-btn" data-act="open-browse">Add exercise</button>
   `;
 }
 
+function renderProgramCard(plan, todaySlot) {
+  const doc = programDoc(plan);
+  const where =
+    todaySlot?.kind === 'complete'
+      ? '16 weeks complete'
+      : todaySlot
+        ? `Week ${todaySlot.week} of ${todaySlot.totalWeeks}${todaySlot.dayName ? ` · ${todaySlot.dayName}` : ''}`
+        : '16 weeks';
+  return `
+    <section class="card">
+      <div class="row">
+        <div>
+          <div class="meal-title">${esc(plan.name)}</div>
+          <div class="muted">${esc(where)} · ${esc(doc?.split || (doc?.daysPerWeek ? `${doc.daysPerWeek} days a week` : '16 weeks'))}</div>
+        </div>
+        <span class="badge">16 weeks</span>
+      </div>
+      <div class="grid-2">
+        <button class="steel-btn" data-act="open-program">View</button>
+        <button class="danger" data-act="end-program">End</button>
+      </div>
+    </section>
+  `;
+}
+
 function renderPlans(state) {
-  const plans = state.plans || [];
+  const program = activeProgramPlan(state);
+  const plans = (state.plans || []).filter((plan) => !isProgramPlan(plan));
+  const todaySlot = program ? resolveToday(program, todayISO()) : null;
   return `
     ${backBtn()}
     <div class="row">
       <h2 style="margin:0;color:var(--navy)">Plans</h2>
       <button class="text-btn" data-act="open-builder">New</button>
     </div>
+    ${
+      program
+        ? renderProgramCard(program, todaySlot)
+        : `<section class="card">
+            <div class="meal-title">4-month plan</div>
+            <p class="muted">One tap builds 16 weeks of movement from the exercise library.</p>
+            <button class="cta-btn" data-act="build-program">Build my 4-month plan</button>
+          </section>`
+    }
     <p class="muted">DIY plans must include every body part. AI plans fill all parts for you.</p>
     ${
       plans.length
@@ -288,7 +334,7 @@ function renderPlans(state) {
         <div class="row">
           <div>
             <div class="meal-title">${esc(p.name)}</div>
-            <div class="muted">${esc(p.source === 'ai' ? 'AI coverage' : 'DIY')} · ${(p.exercises || []).length} exercises</div>
+            <div class="muted">${esc(p.source === 'ai' ? 'AI coverage' : 'DIY')} · ${(Array.isArray(p.exercises) ? p.exercises : []).length} exercises</div>
           </div>
           <span class="badge">${esc(p.source || 'diy')}</span>
         </div>
@@ -300,8 +346,82 @@ function renderPlans(state) {
       </section>`
             )
             .join('')
-        : `<section class="card"><p class="muted">No saved plans yet.</p><button class="primary-btn" data-act="open-builder">Build a plan</button></section>`
+        : program
+          ? ''
+          : `<section class="card"><p class="muted">No DIY or AI plans yet.</p><button class="primary-btn" data-act="open-builder">Build a custom plan</button></section>`
     }
+  `;
+}
+
+function renderProgram(state) {
+  const plan = activeProgramPlan(state);
+  if (!plan) {
+    return `
+      ${backBtn()}
+      <section class="card">
+        <h2 style="margin:0 0 8px;color:var(--navy)">No active plan</h2>
+        <p class="muted">Build a 16-week movement plan in one tap.</p>
+        <button class="cta-btn" data-act="build-program">Build my 4-month plan</button>
+      </section>
+    `;
+  }
+  const doc = programDoc(plan);
+  const todaySlot = resolveToday(plan, todayISO());
+  const currentIndex = todaySlot && todaySlot.kind !== 'complete' ? todaySlot.index : -1;
+  const canStart = todaySlot?.kind === 'ready';
+  return `
+    ${backBtn()}
+    <h2 style="margin:0 0 6px;color:var(--navy)">${esc(plan.name)}</h2>
+    <p class="muted" style="margin-top:0">${doc.level ? `${esc(doc.level)} · ` : ''}${doc.daysPerWeek ? `${doc.daysPerWeek} days a week · ` : ''}${esc(doc.split || 'movement')} · 16 weeks</p>
+    ${renderPhasePills(doc)}
+    ${
+      canStart
+        ? `<button class="cta-btn" style="margin-bottom:14px" data-act="start-program">Start ${esc(todaySlot.dayName || "today's workout")}</button>`
+        : ''
+    }
+    ${doc.weeks
+      .map((week, weekIndex) => {
+        const open = todaySlot?.week === week.week;
+        return `
+          <details class="card week-block" ${open ? 'open' : ''}>
+            <summary>Week ${week.week} · ${esc(week.phase)}</summary>
+            ${week.days
+              .map((day, dayIndex) => {
+                const absolute = weekIndex * (week.days.length || 7) + dayIndex;
+                const current = absolute === currentIndex;
+                return `
+                  <div class="program-day ${current ? 'is-current' : ''}">
+                    <div class="row">
+                      <div class="meal-title">${esc(day.name)}${current ? ' · today' : ''}</div>
+                    </div>
+                    ${
+                      day.rest
+                        ? `<p class="muted" style="margin:4px 0 0">Rest</p>`
+                        : (day.exercises || [])
+                            .map(
+                              (ex, exerciseIndex) => `
+                      <div class="list-row">
+                        <div>
+                          <div class="food-name">${esc(ex.name)}</div>
+                          <div class="food-meta">${esc(ex.target || bodyPartName(ex.bodyPart))}</div>
+                        </div>
+                        <button class="text-btn" data-act="swap-exercise" data-week="${weekIndex}" data-day="${dayIndex}" data-i="${exerciseIndex}">Swap</button>
+                      </div>`
+                            )
+                            .join('')
+                    }
+                  </div>
+                `;
+              })
+              .join('')}
+          </details>
+        `;
+      })
+      .join('')}
+    <div class="program-actions">
+      <button class="steel-btn" data-act="regenerate-program">Regenerate plan</button>
+      <button class="danger-btn" data-act="end-program">End plan</button>
+    </div>
   `;
 }
 

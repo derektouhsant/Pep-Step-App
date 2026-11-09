@@ -1159,6 +1159,98 @@ img {
   cursor: not-allowed;
 }
 
+.cta-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  background: var(--navy);
+  color: var(--white);
+  font-weight: 800;
+  font-size: 15px;
+  padding: 14px 18px;
+  border: 0;
+  border-radius: 999px;
+}
+
+.hero-card .cta-btn {
+  background: var(--white);
+  color: var(--navy);
+}
+
+.hero-card .text-btn {
+  color: var(--light);
+}
+
+.program-list {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.program-list li {
+  font-size: 14px;
+  line-height: 1.35;
+  padding: 2px 0;
+}
+
+.preview-target {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hero-card .preview-target,
+.hero-card .program-list {
+  color: var(--light);
+}
+
+.phase-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.phase-pill {
+  background: var(--pale);
+  color: var(--navy);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.week-block summary {
+  cursor: pointer;
+  font-weight: 800;
+  color: var(--navy);
+}
+
+.program-day {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.program-day.is-current .meal-title {
+  color: var(--steel);
+}
+
+.program-actions {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 8px;
+}
+
+.program-actions .steel-btn,
+.program-actions .danger-btn {
+  width: 100%;
+}
+
+.program-actions .danger-btn {
+  margin-top: 0;
+}
+
 .sync-pill {
   display: inline-flex;
   align-items: center;

@@ -87,6 +87,7 @@ back|Inverted Row|Bodyweight
 back|Face Pull|Cable
 back|Rack Pull|Barbell
 back|Hyperextension|Bodyweight
+back|Superman Hold|Bodyweight
 back|Trap Bar Deadlift|Trap bar
 back|Seal Row|Barbell
 back|Cable Pullover|Cable
@@ -160,6 +161,8 @@ legs|Seated Calf Raise|Machine
 legs|Sissy Squat|Bodyweight
 legs|Pistol Squat|Bodyweight
 legs|Wall Sit|Bodyweight
+legs|Bodyweight Squat|Bodyweight
+legs|Bodyweight Calf Raise|Bodyweight
 legs|Adductor Machine|Machine
 legs|Abductor Machine|Machine
 legs|Smith Machine Squat|Smith
@@ -248,6 +251,8 @@ olympic|Kettlebell Snatch|Kettlebell
 olympic|Hang Power Clean|Barbell
 olympic|Hang Power Snatch|Barbell
 full-body|Burpee|Bodyweight
+full-body|Modified Burpee|Bodyweight
+full-body|Squat to Reach|Bodyweight
 full-body|Thruster|Barbell
 full-body|Kettlebell Swing|Kettlebell
 full-body|Man Maker|Dumbbell

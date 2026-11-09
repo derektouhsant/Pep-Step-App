@@ -8,6 +8,15 @@ import { icons } from './icons.js';
 import { renderDiary, MEALS, dayTotals, calorieProgress } from './views/diary.js';
 import { renderHome, firstEmptyMeal } from './views/home.js';
 import { renderWorkouts, missingParts } from './views/workouts.js';
+import {
+  activeProgramPlan,
+  advanceProgram,
+  buildProgramPlan,
+  programDoc,
+  resolveToday,
+  sessionExercises,
+  swapProgramExercise,
+} from './program.js';
 import { renderMore, renderInstallTip } from './views/more.js';
 import { isPrivacyPath, privacyHref, renderPrivacy } from './privacy.js';
 import {
@@ -99,6 +108,9 @@ function renderSheet() {
   if (s.type === 'entry') return entrySheet(s);
   if (s.type === 'video') return videoSheet(s);
   if (s.type === 'confirm-finish') return finishSheet();
+  if (s.type === 'swap-exercise') return swapSheet(s);
+  if (s.type === 'confirm-regenerate') return regenerateSheet();
+  if (s.type === 'confirm-end-program') return endProgramSheet();
   if (s.type === 'confirm-reset') return resetSheet();
   if (s.type === 'confirm-delete-account') return deleteAccountSheet();
   if (s.type === 'confirm-delete-account-final') return deleteAccountFinalSheet(s);
@@ -216,6 +228,77 @@ function videoSheet(s) {
         <h3 style="margin:0;color:var(--navy)">${esc(ex.name)}</h3>
         <p class="muted">${esc(ex.equipment)} · Video coming soon</p>
         <button class="primary-btn" data-act="close-sheet">Close</button>
+      </div>
+    </div>
+  `;
+}
+
+function swapSheet(s) {
+  const plan = activeProgramPlan(state);
+  const day = programDoc(plan)?.weeks?.[s.week]?.days?.[s.day];
+  const current = day?.exercises?.[s.index];
+  const part = s.part || current?.bodyPart || 'chest';
+  const q = (s.query || '').trim().toLowerCase();
+  const matches = exercisesByPart(part)
+    .filter((ex) => !q || ex.name.toLowerCase().includes(q))
+    .slice(0, 40);
+  return `
+    <div class="overlay" data-act="close-sheet">
+      <div class="sheet" data-stop>
+        <div class="grab"></div>
+        <div class="row">
+          <h3 style="margin:0;color:var(--navy)">Swap exercise</h3>
+          <button class="text-btn" data-act="close-sheet">Close</button>
+        </div>
+        <p class="muted">${current ? `Replacing ${esc(current.name)}. The sets and reps stay with this slot.` : 'Pick a movement from the library.'}</p>
+        <input class="search" data-act="swap-query" data-keep="swap-query" placeholder="Search exercises" value="${esc(s.query || '')}" />
+        <div class="part-grid" style="margin-bottom:12px">
+          ${BODY_PARTS.map(
+            (item) =>
+              `<button class="part-chip ${item.id === part ? 'active' : ''}" data-act="swap-part" data-part="${item.id}">${esc(item.name)}</button>`
+          ).join('')}
+        </div>
+        ${
+          matches
+            .map(
+              (ex) => `
+            <button class="list-row" data-act="pick-swap" data-id="${esc(ex.id)}">
+              <div>
+                <div class="food-name">${esc(ex.name)}</div>
+                <div class="food-meta">${esc(ex.equipment)}</div>
+              </div>
+            </button>`
+            )
+            .join('') || `<p class="muted">No exercises match.</p>`
+        }
+      </div>
+    </div>
+  `;
+}
+
+function regenerateSheet() {
+  return `
+    <div class="overlay" data-act="close-sheet">
+      <div class="sheet" data-stop>
+        <div class="grab"></div>
+        <h3 style="margin:0 0 8px;color:var(--navy)">Regenerate this plan?</h3>
+        <p class="muted">This builds a new 16-week plan from the current template and starts again at week 1. Logged workouts stay in history.</p>
+        <button class="primary-btn" data-act="confirm-regenerate">Regenerate</button>
+        <button class="text-btn" style="width:100%;margin-top:8px" data-act="close-sheet">Cancel</button>
+      </div>
+    </div>
+  `;
+}
+
+function endProgramSheet() {
+  return `
+    <div class="overlay" data-act="close-sheet">
+      <div class="sheet" data-stop>
+        <div class="grab"></div>
+        <h3 style="margin:0 0 8px;color:var(--navy)">End this plan?</h3>
+        <p class="muted">Today’s workout comes off Home. Workouts you already logged stay in history.</p>
+        <button class="danger-btn" data-act="confirm-end-program">End plan</button>
+        <button class="text-btn" style="width:100%;margin-top:8px" data-act="close-sheet">Cancel</button>
       </div>
     </div>
   `;
@@ -469,15 +552,112 @@ function generateAiPlan() {
   render();
 }
 
+function buildFourMonthPlan() {
+  if (activeProgramPlan(state)) {
+    toast('You already have a 16-week plan');
+    ui.tab = 'workouts';
+    ui.workoutView = 'program';
+    render();
+    return;
+  }
+  const plan = buildProgramPlan({ startDate: todayISO(), goals: state.goals });
+  state.plans = [plan, ...(state.plans || [])];
+  persist();
+  toast('Your 16-week plan is ready');
+  render();
+}
+
+function startProgramWorkout() {
+  const plan = activeProgramPlan(state);
+  if (!plan) {
+    toast('Build a plan first');
+    return;
+  }
+  const slot = resolveToday(plan, todayISO());
+  if (!slot || slot.kind === 'complete') {
+    toast('This plan is finished');
+    return;
+  }
+  if (slot.kind !== 'ready') {
+    toast(slot.kind === 'rest' ? 'Rest day. The next session stays queued.' : 'Today’s session is already done.');
+    return;
+  }
+  if (state.activeWorkout) {
+    ui.tab = 'workouts';
+    ui.workoutView = 'logger';
+    ui.sheet = null;
+    if (state.activeWorkout.planId === plan.id && state.activeWorkout.programIndex === slot.index) {
+      render();
+      return;
+    }
+    toast('Finish the workout in progress first');
+    render();
+    return;
+  }
+  const doc = programDoc(plan);
+  state.activeWorkout = {
+    id: uid(),
+    name: slot.dayName || plan.name,
+    planId: plan.id,
+    programIndex: slot.index,
+    programWeek: slot.week,
+    programDayName: slot.dayName,
+    programGeneration: doc?.generation,
+    startedAt: Date.now(),
+    exercises: sessionExercises(slot.exercises, state.lastSets),
+  };
+  persist();
+  ui.tab = 'workouts';
+  ui.workoutView = 'logger';
+  ui.sheet = null;
+  toast('Workout started');
+  render();
+}
+
+function regenerateFourMonthPlan() {
+  const existing = activeProgramPlan(state);
+  if (!existing) return;
+  const rebuilt = buildProgramPlan({
+    startDate: todayISO(),
+    goals: state.goals,
+    id: existing.id,
+    createdAt: existing.createdAt,
+  });
+  const index = state.plans.findIndex((plan) => plan.id === existing.id);
+  if (index >= 0) state.plans[index] = rebuilt;
+  else state.plans.unshift(rebuilt);
+  persist();
+  ui.sheet = null;
+  ui.tab = 'home';
+  ui.workoutView = 'home';
+  toast('A new 16-week plan is ready');
+  render();
+}
+
+function endFourMonthPlan() {
+  const existing = activeProgramPlan(state);
+  if (!existing) return;
+  state.plans = (state.plans || []).filter((plan) => plan.id !== existing.id);
+  persist();
+  ui.sheet = null;
+  ui.workoutView = 'home';
+  toast('Plan ended. Logged workouts stay in history.');
+  render();
+}
+
 function startPlan(planId) {
   const plan = state.plans.find((p) => p.id === planId);
   if (!plan) return;
+  if (programDoc(plan)) {
+    startProgramWorkout();
+    return;
+  }
   state.activeWorkout = {
     id: uid(),
     name: plan.name,
     planId: plan.id,
     startedAt: Date.now(),
-    exercises: plan.exercises.map((ex) => {
+    exercises: (Array.isArray(plan.exercises) ? plan.exercises : []).map((ex) => {
       const cat = getExercise(ex.exerciseId);
       const log = cat?.log || ex.log || (ex.bodyPart === 'cardio' ? 'duration' : 'strength');
       const prev = state.lastSets[ex.exerciseId];
@@ -528,12 +708,18 @@ function finishWorkout() {
       };
     }
   }
+  let advanced = false;
+  if (w.planId != null && Number.isInteger(w.programIndex)) {
+    const plan = (state.plans || []).find((item) => item.id === w.planId);
+    advanced = advanceProgram(plan, w.programIndex, w.programGeneration);
+  }
   state.workoutHistory = [finished, ...(state.workoutHistory || [])].slice(0, 50);
   state.activeWorkout = null;
   persist();
   ui.sheet = null;
   ui.workoutView = 'home';
-  toast('Workout saved');
+  if (advanced) ui.tab = 'home';
+  toast(advanced ? 'Workout saved. Next session is queued.' : 'Workout saved');
   render();
 }
 
@@ -852,6 +1038,72 @@ function onClick(event) {
     'start-plan'() {
       startPlan(btn.dataset.id);
     },
+    'build-program'() {
+      buildFourMonthPlan();
+    },
+    'start-program'() {
+      startProgramWorkout();
+    },
+    'open-program'() {
+      ui.tab = 'workouts';
+      ui.workoutView = 'program';
+      ui.sheet = null;
+      render();
+    },
+    'regenerate-program'() {
+      ui.sheet = { type: 'confirm-regenerate' };
+      render();
+    },
+    'confirm-regenerate'() {
+      regenerateFourMonthPlan();
+    },
+    'end-program'() {
+      ui.sheet = { type: 'confirm-end-program' };
+      render();
+    },
+    'confirm-end-program'() {
+      endFourMonthPlan();
+    },
+    'swap-exercise'() {
+      const plan = activeProgramPlan(state);
+      const week = Number(btn.dataset.week);
+      const day = Number(btn.dataset.day);
+      const index = Number(btn.dataset.i);
+      const current = programDoc(plan)?.weeks?.[week]?.days?.[day]?.exercises?.[index];
+      ui.sheet = {
+        type: 'swap-exercise',
+        week,
+        day,
+        index,
+        part: current?.bodyPart || 'chest',
+        query: '',
+      };
+      render();
+    },
+    'swap-part'() {
+      if (ui.sheet?.type !== 'swap-exercise') return;
+      ui.sheet = { ...ui.sheet, part: btn.dataset.part, query: '' };
+      ui.search = '';
+      render();
+    },
+    'pick-swap'() {
+      if (ui.sheet?.type !== 'swap-exercise') return;
+      const plan = activeProgramPlan(state);
+      const next = swapProgramExercise(plan, {
+        weekIndex: ui.sheet.week,
+        dayIndex: ui.sheet.day,
+        exerciseIndex: ui.sheet.index,
+        exerciseId: btn.dataset.id,
+      });
+      if (!next) {
+        toast('Could not swap that exercise');
+        return;
+      }
+      persist();
+      ui.sheet = null;
+      toast(`Swapped in ${next.name}`);
+      render();
+    },
     'delete-plan'() {
       state.plans = state.plans.filter((p) => p.id !== btn.dataset.id);
       persist();
@@ -1039,6 +1291,12 @@ function onInput(event) {
   }
   if (act === 'plan-name') {
     ui.builder.name = el.value;
+    return;
+  }
+  if (act === 'swap-query' && ui.sheet?.type === 'swap-exercise') {
+    ui.sheet.query = el.value;
+    rememberCaret(el);
+    render();
     return;
   }
   if (act === 'auth-email') {
