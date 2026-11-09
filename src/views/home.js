@@ -161,7 +161,7 @@ function workoutCard(state, today) {
         <span class="status-pill ${status.kind}">${esc(status.label)}</span>
       </div>
       <h3 class="home-card-title">Build a 16-week plan</h3>
-      <p class="muted">One tap builds four months of movement. About 4 days a week, with strength work and treadmill time.</p>
+      <p class="muted">One tap builds four months of movement at home. Bodyweight practice and treadmill time, three days on and one day of rest.</p>
       <button class="cta-btn" data-act="build-program">Build my 4-month plan</button>
       <p class="muted" style="margin:12px 0 0">${lastLine}</p>
       <button class="text-btn" style="width:100%;margin-top:8px" data-act="start-workout">Start an empty workout</button>

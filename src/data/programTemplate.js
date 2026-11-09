@@ -1,95 +1,83 @@
 /**
- * PepStep 16-week plan template — PLACEHOLDER.
+ * Vanessa's Women's Workout — 16 weeks.
  *
- * This is the only file that decides plan content: split, days, exercises,
- * phases, sets, reps, and treadmill time. The rest of the app only reads
- * `PROGRAM_TEMPLATE` through `expandTemplate` in src/program.js.
+ * The app reads this file through expandTemplate in src/program.js.
+ * `cycle` repeats in order and is not tied to a weekday.
+ * `weekPlan` is the week-by-week dose: reps, then sets, then harder
+ * variations. Weeks 4, 8, 12, and 16 are lighter recovery weeks.
  *
- * Replace this module when Derek's plan foundation is ready. Keep the export
- * name and the shape below, or update `expandTemplate` if the shape changes.
+ * Exercise ids must exist in src/data/exercises.js.
+ * `name` overrides the library label shown on the plan.
+ * `hold: true` uses holdSec instead of reps.
+ * `harder` swaps in another library exercise from that week onward,
+ * except on recovery weeks.
+ * Treadmill `style` is incline, easy, or intervals. Time, incline, and
+ * speed come from the week row and use the existing treadmill logger.
  *
- * Shape:
- * {
- *   id: string,
- *   name: string,
- *   daysPerWeek: number,
- *   split: string,
- *   days: [ // exactly 7. Index 0 is the calendar day the plan is built.
- *     { name: 'Rest', rest: true },
- *     { name: 'Upper A', exercises: [
- *       { id: 'barbell-bench-press' }, // strength uses the phase sets and reps
- *       { id: 'treadmill' },           // cardio uses phase cardioMinutes
- *     ]},
- *   ],
- *   phases: [ // cover weeks 1 through 16 with no gaps or overlaps
- *     { name: 'Foundation', weeks: [1, 4], sets: 3, reps: '10', cardioMinutes: 15 },
- *   ],
- *   // Optional. Used only when goals.daysPerWeek or goals.trainingDays matches a key.
- *   variants: {
- *     '3': { daysPerWeek: 3, split: 'full-body', days: [ ...7 days ] },
- *   },
- * }
- *
- * Exercise `id` values must exist in src/data/exercises.js.
- * Per-exercise `sets`, `reps`, or `minutes` override the phase for that movement.
- * Keep copy about movement. No medical, fat-loss, or medication framing.
+ * Framing stays on movement. No fat-loss or medication copy.
  */
 
+const harderBridge = { id: 'single-leg-glute-bridge', fromWeek: 13, reps: 8 };
+const harderPushUp = { id: 'push-up', fromWeek: 13, reps: 8 };
+const harderBurpee = { id: 'burpee', fromWeek: 13, reps: 5 };
+
 export const PROGRAM_TEMPLATE = {
-  id: 'placeholder-upper-lower-v1',
-  name: '4-month movement plan',
-  daysPerWeek: 4,
-  split: 'upper-lower',
-  days: [
+  id: 'vanessas-womens-workout-v1',
+  name: "Vanessa's Women's Workout",
+  level: 'Beginner',
+  split: '3 days on, 1 rest',
+  cycle: [
     {
-      name: 'Upper A',
+      name: 'Lower body',
       exercises: [
-        { id: 'barbell-bench-press' },
-        { id: 'bent-over-barbell-row' },
-        { id: 'barbell-overhead-press' },
-        { id: 'dumbbell-curl' },
-        { id: 'tricep-pushdown' },
+        { id: 'bodyweight-squat' },
+        { id: 'glute-bridge', harder: harderBridge },
+        { id: 'reverse-lunge' },
+        { id: 'wall-sit', hold: true },
+        { id: 'bodyweight-calf-raise' },
+        { id: 'treadmill', name: 'Incline treadmill walk', style: 'incline' },
       ],
     },
     {
-      name: 'Lower A',
+      name: 'Upper body & core',
       exercises: [
-        { id: 'back-squat' },
-        { id: 'romanian-deadlift' },
-        { id: 'barbell-hip-thrust' },
-        { id: 'plank' },
-      ],
-    },
-    { name: 'Rest', rest: true },
-    {
-      name: 'Upper B',
-      exercises: [
-        { id: 'incline-dumbbell-press' },
-        { id: 'pull-up' },
-        { id: 'lateral-raise' },
-        { id: 'hammer-curl' },
-        { id: 'skull-crusher' },
+        { id: 'incline-push-up', harder: harderPushUp },
+        { id: 'plank', hold: true },
+        { id: 'bird-dog' },
+        { id: 'bench-dip', name: 'Chair Tricep Dip' },
+        { id: 'dead-bug' },
+        { id: 'treadmill', name: 'Easy treadmill walk', style: 'easy' },
       ],
     },
     {
-      name: 'Lower B',
+      name: 'Full body',
       exercises: [
-        { id: 'goblet-squat' },
-        { id: 'walking-lunge' },
-        { id: 'lying-leg-curl' },
-        { id: 'glute-bridge' },
-        { id: 'treadmill' },
+        { id: 'step-up' },
+        { id: 'squat-to-reach' },
+        { id: 'modified-burpee', harder: harderBurpee },
+        { id: 'side-plank', hold: true },
+        { id: 'superman-hold', hold: true },
+        { id: 'treadmill', name: 'Treadmill intervals', style: 'intervals' },
       ],
     },
-    { name: 'Rest', rest: true },
     { name: 'Rest', rest: true },
   ],
-  phases: [
-    { name: 'Foundation', weeks: [1, 4], sets: 3, reps: '10', cardioMinutes: 15 },
-    { name: 'Build', weeks: [5, 8], sets: 3, reps: '8', cardioMinutes: 20 },
-    { name: 'Strength', weeks: [9, 12], sets: 4, reps: '6', cardioMinutes: 20 },
-    { name: 'Deload', weeks: [13, 13], sets: 2, reps: '8', cardioMinutes: 12 },
-    { name: 'Strength', weeks: [14, 15], sets: 4, reps: '5', cardioMinutes: 20 },
-    { name: 'Deload', weeks: [16, 16], sets: 2, reps: '10', cardioMinutes: 12 },
+  weekPlan: [
+    { week: 1, phase: 'Getting started', sets: 2, reps: 8, holdSec: 15, cardioMinutes: 25, incline: 3, walkSpeed: 2.5, easySpeed: 2.5, briskSpeed: 3.2 },
+    { week: 2, phase: 'Getting started', sets: 2, reps: 10, holdSec: 20, cardioMinutes: 28, incline: 3, walkSpeed: 2.5, easySpeed: 2.5, briskSpeed: 3.2 },
+    { week: 3, phase: 'Getting started', sets: 2, reps: 12, holdSec: 25, cardioMinutes: 32, incline: 3.5, walkSpeed: 2.6, easySpeed: 2.6, briskSpeed: 3.3 },
+    { week: 4, phase: 'Ease back', recovery: true, sets: 2, reps: 8, holdSec: 15, cardioMinutes: 25, incline: 2, walkSpeed: 2.5, easySpeed: 2.5, briskSpeed: 3 },
+    { week: 5, phase: 'Build', sets: 2, reps: 10, holdSec: 25, cardioMinutes: 34, incline: 4, walkSpeed: 2.7, easySpeed: 2.7, briskSpeed: 3.3 },
+    { week: 6, phase: 'Build', sets: 2, reps: 12, holdSec: 30, cardioMinutes: 37, incline: 4, walkSpeed: 2.7, easySpeed: 2.7, briskSpeed: 3.4 },
+    { week: 7, phase: 'Build', sets: 2, reps: 15, holdSec: 35, cardioMinutes: 40, incline: 4, walkSpeed: 2.8, easySpeed: 2.8, briskSpeed: 3.4 },
+    { week: 8, phase: 'Ease back', recovery: true, sets: 2, reps: 8, holdSec: 20, cardioMinutes: 25, incline: 2, walkSpeed: 2.5, easySpeed: 2.5, briskSpeed: 3 },
+    { week: 9, phase: 'Add a set', sets: 3, reps: 12, holdSec: 30, cardioMinutes: 42, incline: 4.5, walkSpeed: 2.8, easySpeed: 2.8, briskSpeed: 3.5 },
+    { week: 10, phase: 'Add a set', sets: 3, reps: 12, holdSec: 35, cardioMinutes: 44, incline: 5, walkSpeed: 2.8, easySpeed: 2.9, briskSpeed: 3.5 },
+    { week: 11, phase: 'Add a set', sets: 3, reps: 15, holdSec: 40, cardioMinutes: 45, incline: 5, walkSpeed: 3, easySpeed: 3, briskSpeed: 3.6 },
+    { week: 12, phase: 'Ease back', recovery: true, sets: 2, reps: 8, holdSec: 20, cardioMinutes: 25, incline: 2, walkSpeed: 2.5, easySpeed: 2.5, briskSpeed: 3 },
+    { week: 13, phase: 'Stronger', sets: 3, reps: 12, holdSec: 40, cardioMinutes: 45, incline: 5, walkSpeed: 3, easySpeed: 3, briskSpeed: 3.6 },
+    { week: 14, phase: 'Stronger', sets: 3, reps: 15, holdSec: 45, cardioMinutes: 45, incline: 5, walkSpeed: 3, easySpeed: 3, briskSpeed: 3.6 },
+    { week: 15, phase: 'Stronger', sets: 3, reps: 15, holdSec: 45, cardioMinutes: 45, incline: 5, walkSpeed: 3, easySpeed: 3, briskSpeed: 3.6 },
+    { week: 16, phase: 'Ease back', recovery: true, sets: 2, reps: 8, holdSec: 20, cardioMinutes: 25, incline: 2, walkSpeed: 2.5, easySpeed: 2.5, briskSpeed: 3 },
   ],
 };

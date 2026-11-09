@@ -1,7 +1,7 @@
 import { esc, formatPrettyDate } from '../utils.js';
 import { phaseSpans, resolveToday } from '../program.js';
 
-function previewList(exercises, limit = 5) {
+function previewList(exercises, limit = 8) {
   const list = exercises || [];
   const shown = list.slice(0, limit);
   const extra = list.length - shown.length;

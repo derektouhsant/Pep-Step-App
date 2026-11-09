@@ -122,7 +122,7 @@ function renderHome(state, health) {
           : `<section class="card hero-card">
             <div class="tiny">Workouts</div>
             <h2 style="margin:6px 0 4px;font-size:20px">Ready when you are</h2>
-            <p class="muted">One tap builds four months of movement. About 4 days a week, with strength work and treadmill time.</p>
+            <p class="muted">One tap builds four months of movement at home. Bodyweight practice and treadmill time, three days on and one day of rest.</p>
             <button class="cta-btn" data-act="build-program">Build my 4-month plan</button>
             <button class="steel-btn" style="margin-top:8px;width:100%;background:transparent;border:1px solid rgba(255,255,255,.35)" data-act="start-workout">Start an empty workout</button>
           </section>`
@@ -293,7 +293,7 @@ function renderProgramCard(plan, todaySlot) {
       <div class="row">
         <div>
           <div class="meal-title">${esc(plan.name)}</div>
-          <div class="muted">${esc(where)} · ${doc?.daysPerWeek || 4} days a week</div>
+          <div class="muted">${esc(where)} · ${esc(doc?.split || (doc?.daysPerWeek ? `${doc.daysPerWeek} days a week` : '16 weeks'))}</div>
         </div>
         <span class="badge">16 weeks</span>
       </div>
@@ -372,7 +372,7 @@ function renderProgram(state) {
   return `
     ${backBtn()}
     <h2 style="margin:0 0 6px;color:var(--navy)">${esc(plan.name)}</h2>
-    <p class="muted" style="margin-top:0">${doc.daysPerWeek} days a week · ${esc(doc.split || 'movement')} · 16 weeks</p>
+    <p class="muted" style="margin-top:0">${doc.level ? `${esc(doc.level)} · ` : ''}${doc.daysPerWeek ? `${doc.daysPerWeek} days a week · ` : ''}${esc(doc.split || 'movement')} · 16 weeks</p>
     ${renderPhasePills(doc)}
     ${
       canStart
