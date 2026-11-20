@@ -10,6 +10,7 @@ import {
   weekdayLetter,
 } from '../utils.js';
 import { workoutTreadmillLines } from '../data/treadmill.js';
+import { isHealthConnect } from '../health/copy.js';
 import { formatMiles, visibleHealthWorkouts } from '../health/model.js';
 import { dayTotals, MEALS, renderEnergyBlock } from './diary.js';
 import { activeProgramPlan } from '../program.js';
@@ -194,6 +195,7 @@ function healthDaySet(workouts) {
 
 function appleHealthHome(health, todayWorkouts, steps) {
   if (!health?.supported) return '';
+  if (isHealthConnect(health)) return healthConnectHome(health, todayWorkouts, steps);
   if (!health.enabled) {
     return `
       <section class="card">
@@ -228,6 +230,49 @@ function appleHealthHome(health, todayWorkouts, steps) {
       <div class="row">
         <div class="tiny">Apple Health</div>
         <span class="health-badge">On this iPhone</span>
+      </div>
+      <div class="steps-count">${esc(stepLabel)}</div>
+      <p class="muted" style="margin:0">Steps today</p>
+      ${imported}
+    </section>
+  `;
+}
+
+function healthConnectHome(health, todayWorkouts, steps) {
+  if (!health.enabled) {
+    return `
+      <section class="card">
+        <div class="row">
+          <div class="tiny">Health Connect</div>
+        </div>
+        <h3 class="home-card-title">Steps and exercise sessions</h3>
+        <p class="muted">Connect to show today's steps and walking, running, and treadmill workouts from Health Connect. PepStep only reads them, and they stay on this phone.</p>
+        <button class="steel-btn" style="width:100%;margin-top:12px" data-act="go-more">Connect in More</button>
+      </section>
+    `;
+  }
+
+  const stepLabel = steps == null ? '—' : Number(steps).toLocaleString();
+  const imported = todayWorkouts.length
+    ? todayWorkouts
+        .map(
+          (workout) => `
+        <div class="history-item">
+          <div class="row">
+            <strong>${esc(workout.name || 'Workout')}</strong>
+            <span class="health-badge">Health Connect</span>
+          </div>
+          <div class="muted">${esc(healthDetail(workout))}</div>
+        </div>`
+        )
+        .join('')
+    : `<p class="muted" style="margin:8px 0 0">No walking, running, or treadmill workouts from Health Connect today.</p>`;
+
+  return `
+    <section class="card">
+      <div class="row">
+        <div class="tiny">Health Connect</div>
+        <span class="health-badge">On this phone</span>
       </div>
       <div class="steps-count">${esc(stepLabel)}</div>
       <p class="muted" style="margin:0">Steps today</p>

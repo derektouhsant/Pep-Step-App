@@ -1,5 +1,6 @@
 import { BODY_PARTS, bodyPartName, isCardio } from '../data/exercises.js';
 import { isTreadmillBlock, workoutTreadmillLines } from '../data/treadmill.js';
+import { healthBrand } from '../health/copy.js';
 import { formatMiles, visibleHealthWorkouts } from '../health/model.js';
 import { activeProgramPlan, isProgramPlan, programDoc, resolveToday } from '../program.js';
 import { esc, formatDuration, formatTime, todayISO } from '../utils.js';
@@ -71,14 +72,14 @@ function historyEntries(state, health) {
   return [...manual, ...imported].sort((a, b) => b.at - a.at).slice(0, limit);
 }
 
-function renderHistoryItem(entry) {
+function renderHistoryItem(entry, brand = 'Apple Health') {
   if (entry.kind === 'health') {
     const workout = entry.workout;
     return `
       <div class="history-item">
         <div class="row">
           <strong>${esc(workout.name || 'Workout')}</strong>
-          <span class="health-badge">Apple Health</span>
+          <span class="health-badge">${esc(brand)}</span>
         </div>
         <div class="muted">${new Date(workout.finishedAt).toLocaleDateString()} · ${esc(healthDetail(workout))}</div>
       </div>`;
@@ -100,6 +101,7 @@ function renderHistoryItem(entry) {
 function renderHome(state, health) {
   const active = state.activeWorkout;
   const recent = historyEntries(state, health);
+  const brand = healthBrand(health);
   return `
     ${
       active
@@ -151,7 +153,7 @@ function renderHome(state, health) {
       <div class="tiny">History</div>
       ${
         recent.length
-          ? recent.map((entry) => renderHistoryItem(entry)).join('')
+          ? recent.map((entry) => renderHistoryItem(entry, brand)).join('')
           : `<p class="muted" style="margin:8px 0 0">Finished workouts will show up here.</p>`
       }
     </section>
