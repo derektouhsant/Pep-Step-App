@@ -7,6 +7,9 @@
     "backgroundColor": "#0A2540",
     "scheme": "capacitor"
   },
+  "android": {
+    "backgroundColor": "#0A2540"
+  },
   "plugins": {
     "SplashScreen": {
       "launchAutoHide": true,

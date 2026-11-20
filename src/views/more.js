@@ -1,3 +1,4 @@
+import { isHealthConnect } from '../health/copy.js';
 import { esc } from '../utils.js';
 
 export function renderInstallTip({ compact = false } = {}) {
@@ -126,6 +127,31 @@ export function renderHealthCard(health) {
   if (!health?.supported) return '';
   const on = Boolean(health.enabled);
   const status = health.status === 'connecting' ? 'Connecting…' : health.status === 'error' ? 'Needs attention' : on ? 'Connected' : 'Off';
+  if (isHealthConnect(health)) {
+    return `
+    <section class="card">
+      <div class="tiny">Health Connect</div>
+      <div class="row" style="margin:8px 0 10px">
+        <strong>Read exercise and steps</strong>
+        <button type="button" class="health-switch ${on ? 'on' : ''}" data-act="toggle-health" role="switch" aria-checked="${on ? 'true' : 'false'}" aria-label="Health Connect ${on ? 'on' : 'off'}">
+          <span></span>
+        </button>
+      </div>
+      <p class="disclaimer">${esc(status)}. PepStep can read steps, heart rate, active energy, and walking, running, and treadmill sessions. Nothing is written to Health Connect. Imported sessions stay on this phone and are not copied to your account.</p>
+      <p class="muted">Turning this off hides Health Connect data in PepStep. To stop sharing, open Health Connect → App permissions → PepStep. If Health Connect is not installed, install it from the Play Store and try again.</p>
+      ${health.error ? `<p class="warn" data-health-error>${esc(health.error)}</p>` : ''}
+      ${
+        on &&
+        health.status !== 'connecting' &&
+        health.fetchedAt &&
+        !(health.stepsToday > 0) &&
+        !(health.workouts || []).length
+          ? `<p class="muted">If this stays empty, allow PepStep to read steps, exercise, heart rate, and active calories in Health Connect. Older sessions also need access to past data.</p>`
+          : ''
+      }
+    </section>
+  `;
+  }
   return `
     <section class="card">
       <div class="tiny">Apple Health</div>
@@ -151,8 +177,25 @@ export function renderHealthCard(health) {
   `;
 }
 
+function onDeviceCopy(native, platform, cloud) {
+  if (platform === 'android') {
+    return cloud.user
+      ? 'Signed-in diary, goals, workouts, and plans are stored on this phone and backed up to your PepStep account. Health Connect imports stay on this phone only. Clearing data removes the PepStep copy here and in the cloud. It does not delete anything in Health Connect.'
+      : 'Diary, goals, workouts, and plans are stored on this phone until you sign in. Health Connect imports stay on this phone only and are not part of that copy.';
+  }
+  if (native) {
+    return cloud.user
+      ? 'Signed-in diary, goals, workouts, and plans are stored on this iPhone and backed up to your PepStep account. Apple Health imports stay on this iPhone only. Clearing data removes the PepStep copy here and in the cloud. It does not delete anything in Apple Health.'
+      : 'Diary, goals, workouts, and plans are stored on this iPhone until you sign in. Apple Health imports stay on this iPhone only and are not part of that copy.';
+  }
+  return cloud.user
+    ? 'Signed-in data is stored in this browser and backed up to your PepStep account. Clearing data removes it here and in the cloud.'
+    : 'Diary, goals, workouts, and plans are stored in this browser with localStorage until you sign in. Clearing site data will erase the offline copy.';
+}
+
 export function renderMore(state, ui, cloud, extras = {}) {
   const native = Boolean(extras.native);
+  const platform = extras.platform || (native ? 'ios' : 'web');
   const href = extras.privacyHref || '/privacy';
   return `
     <section class="card more-hero">
@@ -187,15 +230,7 @@ export function renderMore(state, ui, cloud, extras = {}) {
 
     <section class="card">
       <div class="tiny">On this device</div>
-      <p class="disclaimer">${
-        native
-          ? cloud.user
-            ? 'Signed-in diary, goals, workouts, and plans are stored on this iPhone and backed up to your PepStep account. Apple Health imports stay on this iPhone only. Clearing data removes the PepStep copy here and in the cloud. It does not delete anything in Apple Health.'
-            : 'Diary, goals, workouts, and plans are stored on this iPhone until you sign in. Apple Health imports stay on this iPhone only and are not part of that copy.'
-          : cloud.user
-            ? 'Signed-in data is stored in this browser and backed up to your PepStep account. Clearing data removes it here and in the cloud.'
-            : 'Diary, goals, workouts, and plans are stored in this browser with localStorage until you sign in. Clearing site data will erase the offline copy.'
-      }</p>
+      <p class="disclaimer">${onDeviceCopy(native, platform, cloud)}</p>
       <button class="danger" data-act="reset-data">${cloud.user ? 'Clear local &amp; cloud PepStep data' : 'Clear local PepStep data'}</button>
     </section>
   `;

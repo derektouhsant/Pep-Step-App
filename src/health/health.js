@@ -1,7 +1,8 @@
 import { App } from '@capacitor/app';
 import { Health } from '@capgo/capacitor-health';
 import { todayISO } from '../utils.js';
-import { isNativeIos } from '../native/platform.js';
+import { isNativeAndroid, isNativeHealth } from '../native/platform.js';
+import { healthConnectReadGranted, healthConnectUnavailableMessage } from './copy.js';
 import { averageHeartRate, healthWorkoutTitle, isIndoorWorkout, isMovementWorkout } from './model.js';
 
 const ENABLED_KEY = 'pepstep:health-enabled';
@@ -14,6 +15,7 @@ const snapshot = {
   enabled: false,
   status: 'off',
   error: '',
+  provider: 'apple',
   stepsToday: null,
   workouts: [],
   fetchedAt: null,
@@ -106,7 +108,7 @@ function normalizeWorkout(raw) {
     distanceMeters: raw.totalDistance == null ? null : Number(raw.totalDistance),
     calories: raw.totalEnergyBurned == null ? null : Math.round(Number(raw.totalEnergyBurned)),
     avgHeartRate: null,
-    sourceName: raw.sourceName || 'Apple Health',
+    sourceName: raw.sourceName || (isNativeAndroid() ? 'Health Connect' : 'Apple Health'),
   };
   if (!isMovementWorkout(draft)) return null;
   draft.indoor = isIndoorWorkout(draft);
@@ -117,8 +119,9 @@ function normalizeWorkout(raw) {
 async function queryMovementWorkouts(Health) {
   const startDate = new Date(Date.now() - LOOKBACK_MS).toISOString();
   const endDate = new Date().toISOString();
+  const workoutTypes = isNativeAndroid() ? ['walking', 'running', 'runningTreadmill'] : ['walking', 'running'];
   const responses = await Promise.all(
-    ['walking', 'running'].map((workoutType) =>
+    workoutTypes.map((workoutType) =>
       Health.queryWorkouts({
         workoutType,
         startDate,
@@ -190,7 +193,7 @@ function failConnect(message) {
 }
 
 export async function refreshHealth() {
-  if (!isNativeIos() || !snapshot.enabled) return snapshot;
+  if (!isNativeHealth() || !snapshot.enabled) return snapshot;
   const token = ++refreshToken;
   try {
     const [stepsToday, workouts] = await Promise.all([queryStepsToday(Health), queryMovementWorkouts(Health)]);
@@ -211,20 +214,23 @@ export async function refreshHealth() {
   } catch (err) {
     if (token !== refreshToken || !snapshot.enabled) return snapshot;
     snapshot.status = 'error';
-    snapshot.error = describeError(err, 'Could not read Apple Health');
+    snapshot.error = describeError(err, isNativeAndroid() ? 'Could not read Health Connect' : 'Could not read Apple Health');
     notify();
   }
   return snapshot;
 }
 
 export async function connectHealth() {
-  if (!isNativeIos()) throw new Error('Apple Health is only available in the iPhone app');
+  if (!isNativeHealth()) throw new Error('Apple Health is only available in the iPhone app');
   snapshot.status = 'connecting';
   snapshot.error = '';
   notify();
   try {
     const availability = await Health.isAvailable();
     if (!availability?.available) {
+      if (isNativeAndroid()) {
+        throw new Error(healthConnectUnavailableMessage(availability?.reason));
+      }
       const reason = availability?.reason || 'Apple Health is not available on this iPhone';
       const message =
         availability?.platform === 'web'
@@ -232,10 +238,21 @@ export async function connectHealth() {
           : reason;
       throw new Error(message);
     }
-    await Health.requestAuthorization({
-      read: READ_TYPES,
-      write: [],
-    });
+    const status = isNativeAndroid()
+      ? await Health.requestAuthorization({
+          read: READ_TYPES,
+          write: [],
+          requestHistoryAccess: true,
+        })
+      : await Health.requestAuthorization({
+          read: READ_TYPES,
+          write: [],
+        });
+    if (isNativeAndroid() && !healthConnectReadGranted(status)) {
+      throw new Error(
+        'Health Connect did not allow PepStep to read steps or exercise. Open Health Connect, allow those for PepStep, and try again.'
+      );
+    }
     snapshot.enabled = true;
     snapshot.status = 'on';
     snapshot.error = '';
@@ -244,7 +261,7 @@ export async function connectHealth() {
     await refreshHealth();
     return snapshot;
   } catch (err) {
-    const message = describeError(err, 'Could not open Apple Health');
+    const message = describeError(err, isNativeAndroid() ? 'Could not open Health Connect' : 'Could not open Apple Health');
     failConnect(message);
     throw new Error(message);
   }
@@ -272,8 +289,9 @@ export function initHealth(hooks = {}) {
   onChange = hooks.onChange || (() => {});
   if (started) return;
   started = true;
-  if (!isNativeIos()) return;
+  if (!isNativeHealth()) return;
   snapshot.supported = true;
+  snapshot.provider = isNativeAndroid() ? 'health-connect' : 'apple';
   snapshot.enabled = readEnabled();
   if (!snapshot.enabled) return;
   snapshot.status = 'on';
