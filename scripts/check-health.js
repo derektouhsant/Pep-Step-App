@@ -187,6 +187,9 @@ const androidMore = renderMore(emptyState, { authEmail: '' }, { configured: fals
 });
 assert(androidMore.includes('aria-label="Health Connect on"'), 'android switch is labelled Health Connect');
 assert(androidMore.includes('Nothing is written to Health Connect'), 'android card says the read is one-way');
+assert(androidMore.includes('read steps and walking, running, and treadmill sessions'), 'android card names steps and exercise only');
+assert(!androidMore.includes('heart rate'), 'android card does not mention heart rate');
+assert(!androidMore.includes('active energy'), 'android card does not mention active energy');
 assert(androidMore.includes('Play Store'), 'android card explains a missing Health Connect install');
 assert(!androidMore.includes('Apple Health'), 'android more does not say Apple Health');
 assert(androidMore.includes('Health Connect imports stay on this phone only'), 'android device copy names Health Connect');

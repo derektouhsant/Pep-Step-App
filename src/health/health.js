@@ -7,7 +7,8 @@ import { averageHeartRate, healthWorkoutTitle, isIndoorWorkout, isMovementWorkou
 
 const ENABLED_KEY = 'pepstep:health-enabled';
 const CACHE_KEY = 'pepstep:health-cache';
-const READ_TYPES = ['steps', 'heartRate', 'calories', 'workouts'];
+const IOS_READ_TYPES = ['steps', 'heartRate', 'calories', 'workouts'];
+const ANDROID_READ_TYPES = ['steps', 'workouts'];
 const LOOKBACK_MS = 90 * 24 * 60 * 60 * 1000;
 
 const snapshot = {
@@ -197,7 +198,7 @@ export async function refreshHealth() {
   const token = ++refreshToken;
   try {
     const [stepsToday, workouts] = await Promise.all([queryStepsToday(Health), queryMovementWorkouts(Health)]);
-    await attachHeartRates(Health, workouts);
+    if (!isNativeAndroid()) await attachHeartRates(Health, workouts);
     if (token !== refreshToken || !snapshot.enabled) return snapshot;
     snapshot.stepsToday = stepsToday;
     snapshot.workouts = workouts;
@@ -240,12 +241,12 @@ export async function connectHealth() {
     }
     const status = isNativeAndroid()
       ? await Health.requestAuthorization({
-          read: READ_TYPES,
+          read: ANDROID_READ_TYPES,
           write: [],
           requestHistoryAccess: true,
         })
       : await Health.requestAuthorization({
-          read: READ_TYPES,
+          read: IOS_READ_TYPES,
           write: [],
         });
     if (isNativeAndroid() && !healthConnectReadGranted(status)) {

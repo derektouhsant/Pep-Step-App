@@ -137,7 +137,7 @@ export function renderHealthCard(health) {
           <span></span>
         </button>
       </div>
-      <p class="disclaimer">${esc(status)}. PepStep can read steps, heart rate, active energy, and walking, running, and treadmill sessions. Nothing is written to Health Connect. Imported sessions stay on this phone and are not copied to your account.</p>
+      <p class="disclaimer">${esc(status)}. PepStep can read steps and walking, running, and treadmill sessions. Nothing is written to Health Connect. Imported sessions stay on this phone and are not copied to your account.</p>
       <p class="muted">Turning this off hides Health Connect data in PepStep. To stop sharing, open Health Connect → App permissions → PepStep. If Health Connect is not installed, install it from the Play Store and try again.</p>
       ${health.error ? `<p class="warn" data-health-error>${esc(health.error)}</p>` : ''}
       ${
@@ -146,7 +146,7 @@ export function renderHealthCard(health) {
         health.fetchedAt &&
         !(health.stepsToday > 0) &&
         !(health.workouts || []).length
-          ? `<p class="muted">If this stays empty, allow PepStep to read steps, exercise, heart rate, and active calories in Health Connect. Older sessions also need access to past data.</p>`
+          ? `<p class="muted">If this stays empty, allow PepStep to read steps and exercise in Health Connect. Older sessions also need access to past data.</p>`
           : ''
       }
     </section>

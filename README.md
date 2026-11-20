@@ -127,7 +127,7 @@ Magic-link sign-in uses the same custom scheme as iPhone: `pepstep://auth/callba
 
 Health Connect is the Android equivalent of Apple Health. The same `@capgo/capacitor-health` plugin reads steps and exercise sessions (walking, running, treadmill). The More switch is labelled **Health Connect** on Android and **Apple Health** on iPhone. Nothing is written. Imported sessions stay on the phone and are not copied to Supabase. Android 14 and later include Health Connect. On earlier versions the switch explains that it needs to be installed from the Play Store. The permission sheet’s privacy link opens `https://pep-step-app.vercel.app/privacy` (`health_connect_privacy_policy_url`). Reads older than about 30 days also ask for Health Connect history access, which matches the 90-day window used on iPhone. If that extra permission is declined, recent steps and sessions still load.
 
-The app manifest keeps only the read permissions PepStep uses and strips the plugin’s unused health permissions (including every write permission) so the Play Console declaration stays limited to steps, heart rate, active calories, exercise, and history.
+The app manifest keeps only the read permissions PepStep uses and strips the plugin’s unused health permissions (including heart rate, active calories, and every write permission) so the Play Console declaration stays limited to steps, exercise, and history.
 
 ### Upload keystore and the Play bundle
 
