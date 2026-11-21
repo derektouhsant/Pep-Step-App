@@ -21,7 +21,7 @@ export function renderPrivacy({ fromApp = false } = {}) {
         </div>
       </header>
       <article class="privacy-body">
-        <p class="tiny">Effective October 6, 2026</p>
+        <p class="tiny">Effective November 21, 2026</p>
         <h1>Privacy policy</h1>
         <p>PepStep (<a href="https://pepstepguide.com" target="_blank" rel="noopener noreferrer">pepstepguide.com</a>) operates the PepStep app. PepStep is family-owned and veteran-owned.</p>
         <p>This policy covers the PepStep website and the iPhone app: Home, Diary, Workouts, and More. It is a log for meals, movement, and workouts. Questions go to <a href="mailto:support@pepstepguide.com">support@pepstepguide.com</a>.</p>
@@ -44,11 +44,9 @@ export function renderPrivacy({ fromApp = false } = {}) {
         <p>PepStep does not sell your information. PepStep does not use your information for advertising.</p>
         <p>Apple Health data is not shared with third parties. It is not used for marketing or advertising. It is not sent to Supabase or Vercel.</p>
 
-        <h2>How to delete your account</h2>
-        <p>Open the More tab while you are signed in and tap <strong>Delete account</strong>. PepStep asks you to confirm twice. The warning says this permanently deletes your account and all synced diary and workout data, and that it cannot be undone.</p>
-        <p>When you confirm, PepStep deletes the sign-in and the synced records (profile, diary days, custom foods, workout sessions, and workout plans), signs you out, and clears PepStep data stored on that device, including the Apple Health cache. The Apple Health connection inside PepStep is turned off so that cache is not filled again until you connect it. Data that remains in the Apple Health app itself is left as it is.</p>
-        <p>You can also email <a href="mailto:support@pepstepguide.com">support@pepstepguide.com</a> and ask us to delete the account.</p>
-        <p>Signing out leaves the copy on that device in place. Clear data (also on the More tab) removes diary and workout data and, when you are signed in, the synced copy. It does not delete the sign-in. Delete account does.</p>
+        <h2>Deleting your account</h2>
+        <p>While you are signed in, open the More tab and tap <strong>Delete account</strong>. PepStep asks you to confirm. Confirming permanently deletes the account and synced workouts, diary, and plan progress. It cannot be undone. On-device Apple Health data is left as it is.</p>
+        <p>PepStep then signs you out and clears the synced copy stored on that device. You can also email <a href="mailto:support@pepstepguide.com">support@pepstepguide.com</a> and ask us to delete the account. Signing out by itself does not delete the account.</p>
 
         <h2>Service providers</h2>
         <ul>
@@ -62,7 +60,7 @@ export function renderPrivacy({ fromApp = false } = {}) {
         <p>PepStep is not directed at children under 13, and PepStep does not knowingly collect personal information from children under 13. If you believe a child has provided personal information, email <a href="mailto:support@pepstepguide.com">support@pepstepguide.com</a> and we will delete it.</p>
 
         <h2>Changes</h2>
-        <p>PepStep may update this policy. When that happens, the effective date on this page will change. This version is effective October 6, 2026.</p>
+        <p>PepStep may update this policy. When that happens, the effective date on this page will change. This version is effective November 21, 2026.</p>
 
         <h2>Contact</h2>
         <p>PepStep<br />pepstepguide.com<br /><a href="mailto:support@pepstepguide.com">support@pepstepguide.com</a></p>

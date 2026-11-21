@@ -4,6 +4,8 @@ import { isPrivacyPath, privacyHref, renderPrivacy, PRIVACY_PUBLIC_URL } from '.
 import { renderMore } from '../src/views/more.js';
 import { defaultState } from '../src/storage.js';
 
+const appSource = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
 }
@@ -18,7 +20,11 @@ assert(privacyHref(true) === PRIVACY_PUBLIC_URL, 'the iOS link opens the live pr
 const page = renderPrivacy({ fromApp: false });
 for (const phrase of [
   'Privacy policy',
-  'October 6, 2026',
+  'November 21, 2026',
+  'Deleting your account',
+  'plan progress',
+  'cannot be undone',
+  'On-device Apple Health data is left as it is',
   'family-owned and veteran-owned',
   'support@pepstepguide.com',
   'magic link',
@@ -58,6 +64,9 @@ const signedIn = renderMore(
 );
 assert(signedIn.includes('data-delete-account'), 'signed-in More tab has Delete account');
 assert(signedIn.includes('>Delete account<'), 'the control is labeled Delete account');
+assert(signedIn.includes('plan progress'), 'Delete account names plan progress');
+assert(signedIn.includes('cannot be undone'), 'Delete account says it cannot be undone');
+assert(signedIn.includes('On-device Apple Health data is left as it is'), 'Delete account says Apple Health stays on the device');
 assert(signedIn.includes('Privacy policy'), 'signed-in More tab still links to the privacy policy');
 assert(signedIn.includes('you@example.com'), 'signed-in account shows the email');
 
@@ -98,5 +107,14 @@ for (const phrase of [
   assert(sql.includes(phrase), `migration should include: ${phrase}`);
 }
 assert(!/service_role\s*=\s*['"][^'"]+['"]/i.test(sql), 'the migration does not embed a service role key');
+assert(/security\s+definer/i.test(sql), 'the function is security definer');
+assert(!appSource.includes('clearHealthDeviceCache'), 'deleting an account does not clear on-device Apple Health data');
+assert(appSource.includes('confirm-delete-account'), 'delete account uses a confirmation dialog');
+assert(appSource.includes('On-device Apple Health data is left as it is'), 'the confirmation says Apple Health stays on the device');
+assert(appSource.includes('plan progress'), 'the confirmation names plan progress');
+assert(appSource.includes('It cannot be undone'), 'the confirmation says deletion cannot be undone');
+assert(appSource.includes('clearLocalState()'), 'a successful delete clears the local synced cache');
+assert(appSource.includes('endLocalSession()'), 'a successful delete ends the session');
+assert(appSource.includes('Could not delete account'), 'a failed delete shows an error');
 
 console.log('delete account and privacy checks ok');

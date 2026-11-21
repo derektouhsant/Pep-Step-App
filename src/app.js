@@ -32,7 +32,7 @@ import {
   clearCloudData,
   syncNow,
 } from './cloud/sync.js';
-import { clearHealthDeviceCache, connectHealth, disconnectHealth, getHealthSnapshot, initHealth } from './health/health.js';
+import { connectHealth, disconnectHealth, getHealthSnapshot, initHealth } from './health/health.js';
 import { isNativeApp, initNativeShell } from './native/platform.js';
 
 let state = loadState();
@@ -324,7 +324,7 @@ function deleteAccountSheet() {
       <div class="sheet" data-stop>
         <div class="grab"></div>
         <h3 style="margin:0 0 8px;color:var(--navy)">Delete account?</h3>
-        <p class="muted">This permanently deletes your PepStep account and all synced diary and workout data. It cannot be undone.</p>
+        <p class="muted">This permanently deletes your account and synced workouts, diary, and plan progress. It cannot be undone. On-device Apple Health data is left as it is.</p>
         <button type="button" class="primary-btn" data-act="delete-account-continue">Continue</button>
         <button type="button" class="text-btn" style="width:100%;margin-top:8px" data-act="close-sheet">Cancel</button>
       </div>
@@ -339,7 +339,7 @@ function deleteAccountFinalSheet(s) {
       <div class="sheet" data-stop>
         <div class="grab"></div>
         <h3 style="margin:0 0 8px;color:var(--navy)">Permanently delete your account?</h3>
-        <p class="muted">Your sign-in and every synced diary entry, custom food, workout, and plan will be deleted. It cannot be undone.</p>
+        <p class="muted">Your sign-in will be removed, along with synced workouts, diary, and plan progress. It cannot be undone. On-device Apple Health data is left as it is.</p>
         ${s.error ? `<p class="warn" data-delete-error>${esc(s.error)}</p>` : ''}
         <button type="button" class="danger-btn" data-act="confirm-delete-account" ${busy ? 'disabled' : ''}>${busy ? 'Deleting account…' : 'Delete account'}</button>
         <button type="button" class="text-btn" style="width:100%;margin-top:8px" data-act="close-sheet" ${busy ? 'disabled' : ''}>Cancel</button>
@@ -1171,9 +1171,7 @@ function onClick(event) {
         render();
         return;
       }
-      await endLocalSession();
       clearLocalState();
-      clearHealthDeviceCache();
       state = defaultState();
       ui.sheet = null;
       ui.tab = 'more';
@@ -1185,7 +1183,8 @@ function onClick(event) {
       ui.authEmail = '';
       ui.builder = { name: '', exercises: [], source: 'diy' };
       ui.accountNotice =
-        'Your PepStep account was deleted. Synced diary and workout data was removed, and PepStep data on this device was cleared.';
+        'Your PepStep account was deleted. Synced workouts, diary, and plan progress were removed. Apple Health data on this device was left in place.';
+      await endLocalSession();
       toast('Account deleted', 5000);
       render();
     },
