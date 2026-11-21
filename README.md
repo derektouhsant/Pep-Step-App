@@ -17,7 +17,11 @@ Peptide catalog, logbook, reminders, shop, and regimen tools are **intentionally
 1. **Home** (default) — today overview of diary nutrition (calories left, macros, water, meal snapshot) and workouts (none / in progress / finished), plus a light 7-day movement glance from existing logs. Cards and CTAs jump into Diary or Workouts.
 2. **Diary** — calorie ring, macro bars, meals, water cups, editable goals, sample foods + custom entries
 3. **Workouts** — start / resume / finish, previous performance, browse ~200 exercises by body part, DIY or AI plan builder, video placeholders. **Treadmill** (Cardio) logs incline, speed (mph), and time with scroll wheels. Other cardio still logs minutes and calories. Strength stays sets, reps, and load.
-4. **More** — account / cloud sync, delete account (when signed in), Add to Home Screen tip, brand, [privacy policy](https://pep-step-app.vercel.app/privacy), [pepstepguide.com](https://pepstepguide.com), [support@pepstepguide.com](mailto:support@pepstepguide.com), not-medical-advice disclaimer
+4. **More** — account / cloud sync, delete account (when signed in), retake starter questions, Add to Home Screen tip, brand, [privacy policy](https://pep-step-app.vercel.app/privacy), [pepstepguide.com](https://pepstepguide.com), [support@pepstepguide.com](mailto:support@pepstepguide.com), not-medical-advice disclaimer
+
+## First launch
+
+A new, empty install opens with a short optional welcome: PepStep, a few tap-to-answer starter questions, then **Sign in with email** or **Continue without an account**. Skip is on every screen. Answers stay in `localStorage` with the rest of PepStep data. Signing in also saves them on the `profiles.onboarding` column after `003_onboarding.sql` has been run. Home uses them only to suggest the existing 16-week plan. People who already have diary, workout, or plan data, or who are already signed in, are not sent through it. **More → Retake starter questions** opens it again. Clear data and Delete account remove the answers.
 
 ## Offline vs cloud
 
@@ -53,6 +57,7 @@ Checks:
 ```bash
 npm run check-data
 npm run check-sync
+npm run check-onboarding
 ```
 
 ## Set up Supabase (cloud sync)
@@ -60,11 +65,12 @@ npm run check-sync
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the dashboard open **SQL Editor**, paste `supabase/migrations/001_pepstep_sync.sql`, and run it. That creates tables plus row-level security so each user can only read/write their own rows.
 3. In the same SQL editor, paste `supabase/migrations/002_delete_account.sql` and run it. That adds `delete_own_account()`, which the signed-in user calls from **More → Delete account**. The function deletes that auth user and their PepStep rows. The app never receives the service role key. Until this script has been run, Delete account shows an error and leaves the account and on-device data in place.
-4. **Authentication → Providers → Email**: enable Email. Magic links are enough (no password UI in the app).
-5. **Authentication → URL configuration**
+4. In the same SQL editor, paste `supabase/migrations/003_onboarding.sql` and run it. That adds `profiles.onboarding` for optional starter answers. Until it has been run, those answers stay on the device and the rest of sync still works.
+5. **Authentication → Providers → Email**: enable Email. Magic links are enough (no password UI in the app).
+6. **Authentication → URL configuration**
    - Site URL: your deployed origin (for example `https://your-app.vercel.app`)
    - Redirect URLs: that origin **and** `http://localhost:5173/**` for local Vite. For the iPhone app, also add `pepstep://auth/callback` (see below).
-6. **Settings → API**: copy **Project URL** and **anon public** key into `.env.local`:
+7. **Settings → API**: copy **Project URL** and **anon public** key into `.env.local`:
 
 ```bash
 VITE_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co

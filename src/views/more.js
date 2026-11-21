@@ -112,11 +112,21 @@ export function renderAccount(cloud, ui, privacyHref = '/privacy') {
   `;
 }
 
+function renderStarterQuestions() {
+  return `
+    <section class="card" data-starter-questions>
+      <div class="tiny">Starter questions</div>
+      <p class="disclaimer">Answer again anytime. PepStep uses them only to suggest the 16-week plan on Home. They are not medical advice.</p>
+      <button type="button" class="steel-btn" style="width:100%;margin-top:12px" data-act="retake-onboarding">Retake starter questions</button>
+    </section>
+  `;
+}
+
 function renderDeleteAccount() {
   return `
     <section class="card" data-delete-account>
       <div class="tiny">Delete account</div>
-      <p class="disclaimer">Permanently deletes your PepStep account and all synced diary and workout data. This cannot be undone.</p>
+      <p class="disclaimer">Permanently deletes your PepStep account and all synced diary, workout, and starter-answer data. This cannot be undone.</p>
       <button type="button" class="danger-btn" data-act="delete-account">Delete account</button>
     </section>
   `;
@@ -164,6 +174,7 @@ export function renderMore(state, ui, cloud, extras = {}) {
     </section>
 
     ${renderAccount(cloud, ui, href)}
+    ${renderStarterQuestions()}
     ${cloud.user ? renderDeleteAccount() : ''}
     ${renderHealthCard(extras.health)}
     ${native ? '' : renderInstallTip()}
@@ -190,11 +201,11 @@ export function renderMore(state, ui, cloud, extras = {}) {
       <p class="disclaimer">${
         native
           ? cloud.user
-            ? 'Signed-in diary, goals, workouts, and plans are stored on this iPhone and backed up to your PepStep account. Apple Health imports stay on this iPhone only. Clearing data removes the PepStep copy here and in the cloud. It does not delete anything in Apple Health.'
-            : 'Diary, goals, workouts, and plans are stored on this iPhone until you sign in. Apple Health imports stay on this iPhone only and are not part of that copy.'
+            ? 'Signed-in diary, goals, workouts, plans, and starter answers are stored on this iPhone and backed up to your PepStep account. Apple Health imports stay on this iPhone only. Clearing data removes the PepStep copy here and in the cloud, including starter answers. It does not delete anything in Apple Health.'
+            : 'Diary, goals, workouts, plans, and starter answers are stored on this iPhone until you sign in. Apple Health imports stay on this iPhone only and are not part of that copy.'
           : cloud.user
-            ? 'Signed-in data is stored in this browser and backed up to your PepStep account. Clearing data removes it here and in the cloud.'
-            : 'Diary, goals, workouts, and plans are stored in this browser with localStorage until you sign in. Clearing site data will erase the offline copy.'
+            ? 'Signed-in data is stored in this browser and backed up to your PepStep account. Clearing data removes it here and in the cloud, including starter answers.'
+            : 'Diary, goals, workouts, plans, and starter answers are stored in this browser with localStorage until you sign in. Clearing site data will erase the offline copy.'
       }</p>
       <button class="danger" data-act="reset-data">${cloud.user ? 'Clear local &amp; cloud PepStep data' : 'Clear local PepStep data'}</button>
     </section>

@@ -14,7 +14,8 @@
     "check-sync": "node scripts/check-sync.js",
     "check-delete": "node scripts/check-delete-account.js",
     "check-health": "node scripts/check-health.js",
-    "check-program": "node scripts/check-program.js"
+    "check-program": "node scripts/check-program.js",
+    "check-onboarding": "node scripts/check-onboarding.js"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",

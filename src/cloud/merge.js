@@ -1,3 +1,4 @@
+import { mergeOnboarding } from '../onboarding.js';
 import { DEFAULT_GOALS } from '../storage.js';
 
 const MEAL_IDS = ['breakfast', 'lunch', 'dinner', 'snacks'];
@@ -111,6 +112,7 @@ export function mergeStates(local, cloud) {
     plans,
     lastSets: mergeLastSets(left.lastSets, right.lastSets),
     activeWorkout: mergeActiveWorkout(left.activeWorkout, right.activeWorkout, workoutHistory),
+    onboarding: mergeOnboarding(left.onboarding, right.onboarding),
     meta: {
       ...(right.meta || {}),
       ...(left.meta || {}),

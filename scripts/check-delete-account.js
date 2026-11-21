@@ -18,7 +18,7 @@ assert(privacyHref(true) === PRIVACY_PUBLIC_URL, 'the iOS link opens the live pr
 const page = renderPrivacy({ fromApp: false });
 for (const phrase of [
   'Privacy policy',
-  'October 6, 2026',
+  'November 21, 2026',
   'family-owned and veteran-owned',
   'support@pepstepguide.com',
   'magic link',

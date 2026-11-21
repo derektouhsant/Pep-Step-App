@@ -18,6 +18,15 @@ import {
   swapProgramExercise,
 } from './program.js';
 import { renderMore, renderInstallTip } from './views/more.js';
+import { renderOnboarding, renderOnboardingWait } from './views/onboarding.js';
+import {
+  buildOnboarding,
+  cloneAnswers,
+  isOnboardingSettled,
+  ONBOARDING_FLOW,
+  onboardingGate,
+  toggleComfort,
+} from './onboarding.js';
 import { isPrivacyPath, privacyHref, renderPrivacy } from './privacy.js';
 import {
   initCloud,
@@ -50,7 +59,15 @@ const ui = {
   screen: 'app',
   privacyFromApp: false,
   accountNotice: '',
+  onboardStep: 0,
+  onboardDraft: null,
+  onboardForce: false,
+  onboardNotice: '',
+  onboardSending: false,
+  onboardSent: false,
 };
+
+let onboardLatched = false;
 
 let toastTimer = 0;
 
@@ -339,7 +356,7 @@ function deleteAccountFinalSheet(s) {
       <div class="sheet" data-stop>
         <div class="grab"></div>
         <h3 style="margin:0 0 8px;color:var(--navy)">Permanently delete your account?</h3>
-        <p class="muted">Your sign-in and every synced diary entry, custom food, workout, and plan will be deleted. It cannot be undone.</p>
+        <p class="muted">Your sign-in and every synced diary entry, custom food, workout, plan, and starter answer will be deleted. It cannot be undone.</p>
         ${s.error ? `<p class="warn" data-delete-error>${esc(s.error)}</p>` : ''}
         <button type="button" class="danger-btn" data-act="confirm-delete-account" ${busy ? 'disabled' : ''}>${busy ? 'Deleting account…' : 'Delete account'}</button>
         <button type="button" class="text-btn" style="width:100%;margin-top:8px" data-act="close-sheet" ${busy ? 'disabled' : ''}>Cancel</button>
@@ -357,8 +374,8 @@ function resetSheet() {
         <h3 style="margin:0 0 8px;color:var(--navy)">Clear ${signedIn ? 'local and cloud' : 'local'} data?</h3>
         <p class="muted">${
           signedIn
-            ? 'This removes diary entries, goals, workouts, and plans on this device and in your PepStep account.'
-            : 'This removes diary entries, goals, workouts, and plans stored in this browser.'
+            ? 'This removes diary entries, goals, workouts, plans, and starter answers on this device and in your PepStep account.'
+            : 'This removes diary entries, goals, workouts, plans, and starter answers stored on this device.'
         }</p>
         <button class="primary-btn" data-act="confirm-reset">Clear data</button>
         <button class="text-btn" style="width:100%;margin-top:8px" data-act="close-sheet">Cancel</button>
@@ -434,11 +451,121 @@ function installBannerHtml() {
   return renderInstallTip({ compact: true });
 }
 
+function hasStoredAuth() {
+  try {
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith('sb-') || !key.includes('auth')) continue;
+      const raw = localStorage.getItem(key) || '';
+      if (raw.includes('access_token') || raw.includes('refresh_token')) return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+function onboardingMode() {
+  if (ui.screen === 'privacy') return 'app';
+  const sync = getSyncInfo();
+  const mode = onboardingGate(state, {
+    signedIn: Boolean(sync.user) || (!sync.authReady && hasStoredAuth()),
+    authReady: Boolean(sync.authReady),
+    force: ui.onboardForce,
+    latched: onboardLatched,
+  });
+  if (mode === 'app') onboardLatched = false;
+  return mode;
+}
+
+function resetOnboardUi() {
+  ui.onboardStep = 0;
+  ui.onboardDraft = null;
+  ui.onboardForce = false;
+  ui.onboardNotice = '';
+  ui.onboardSending = false;
+  ui.onboardSent = false;
+  onboardLatched = false;
+}
+
+function ensureOnboardDraft() {
+  if (!ui.onboardDraft) ui.onboardDraft = cloneAnswers(state.onboarding?.answers);
+  return ui.onboardDraft;
+}
+
+function closeOnboarding({ home = false } = {}) {
+  ui.onboardForce = false;
+  ui.onboardStep = 0;
+  ui.onboardNotice = '';
+  ui.onboardSending = false;
+  ui.onboardSent = false;
+  onboardLatched = false;
+  if (home) ui.tab = 'home';
+}
+
+function finishOnboarding(status) {
+  state.onboarding = buildOnboarding(status, ensureOnboardDraft());
+  closeOnboarding({ home: true });
+  ui.onboardDraft = null;
+  persist();
+}
+
+function latchOnboarding() {
+  onboardLatched = true;
+}
+
+function currentOnboardStep() {
+  const index = Math.min(Math.max(ui.onboardStep || 0, 0), ONBOARDING_FLOW.length - 1);
+  return ONBOARDING_FLOW[index];
+}
+
+async function submitOnboardSignIn() {
+  if (ui.onboardSending) return;
+  latchOnboarding();
+  const email = (val('auth-email') || ui.authEmail || '').trim();
+  ui.authEmail = email;
+  ui.onboardSending = true;
+  ui.onboardNotice = '';
+  render();
+  try {
+    await sendMagicLink(email);
+    state.onboarding = buildOnboarding('completed', ensureOnboardDraft());
+    persist();
+    ui.onboardSent = true;
+    ui.onboardForce = true;
+    ui.onboardNotice = 'Check your email for a sign-in link. You can use PepStep while you wait. An account is optional.';
+  } catch (err) {
+    ui.onboardNotice = err.message || 'Could not send the sign-in link';
+  } finally {
+    ui.onboardSending = false;
+    render();
+  }
+}
+
 export function render() {
   const root = document.getElementById('app');
   if (ui.screen === 'privacy') {
     document.title = 'Privacy policy — PepStep';
     root.innerHTML = renderPrivacy({ fromApp: ui.privacyFromApp });
+    return;
+  }
+  const mode = onboardingMode();
+  if (mode === 'wait') {
+    document.title = 'PepStep';
+    root.innerHTML = renderOnboardingWait();
+    return;
+  }
+  if (mode === 'flow') {
+    document.title = 'Welcome — PepStep';
+    root.innerHTML = renderOnboarding({
+      stepIndex: ui.onboardStep,
+      draft: ui.onboardDraft || cloneAnswers(state.onboarding?.answers),
+      notice: ui.onboardNotice,
+      privacyHref: privacyHref(isNativeApp()),
+      sending: ui.onboardSending,
+      sent: ui.onboardSent,
+      email: ui.authEmail,
+    });
     return;
   }
   document.title = 'PepStep — Put a Pep in Your Step';
@@ -1143,6 +1270,65 @@ function onClick(event) {
       ui.sheet = { type: 'video', id: btn.dataset.id };
       render();
     },
+    'retake-onboarding'() {
+      ui.onboardForce = true;
+      ui.onboardStep = 0;
+      ui.onboardDraft = cloneAnswers(state.onboarding?.answers);
+      ui.onboardNotice = '';
+      ui.onboardSending = false;
+      ui.onboardSent = false;
+      ui.sheet = null;
+      render();
+    },
+    'onboard-back'() {
+      latchOnboarding();
+      if (ui.onboardStep > 0) ui.onboardStep -= 1;
+      ui.onboardNotice = '';
+      ui.onboardSent = false;
+      render();
+    },
+    'onboard-skip'() {
+      if (ui.onboardForce && isOnboardingSettled(state.onboarding)) {
+        closeOnboarding();
+        render();
+        return;
+      }
+      finishOnboarding('skipped');
+      render();
+    },
+    'onboard-next'() {
+      latchOnboarding();
+      const step = currentOnboardStep();
+      if (step.id === 'save') {
+        finishOnboarding('completed');
+        render();
+        return;
+      }
+      if (ui.onboardStep < ONBOARDING_FLOW.length - 1) ui.onboardStep += 1;
+      render();
+    },
+    'onboard-option'() {
+      latchOnboarding();
+      const step = currentOnboardStep();
+      if (!step?.field) return;
+      const draft = ensureOnboardDraft();
+      const id = btn.dataset.id;
+      if (step.multi) {
+        draft.comfort = toggleComfort(draft.comfort, id);
+        ui.onboardDraft = draft;
+        render();
+        return;
+      }
+      if (step.field === 'daysPerWeek') draft.daysPerWeek = Number(id);
+      else draft[step.field] = id;
+      ui.onboardDraft = draft;
+      if (ui.onboardStep < ONBOARDING_FLOW.length - 1) ui.onboardStep += 1;
+      render();
+    },
+    'onboard-enter'() {
+      closeOnboarding({ home: true });
+      render();
+    },
     'reset-data'() {
       ui.sheet = { type: 'confirm-reset' };
       render();
@@ -1175,6 +1361,7 @@ function onClick(event) {
       clearLocalState();
       clearHealthDeviceCache();
       state = defaultState();
+      resetOnboardUi();
       ui.sheet = null;
       ui.tab = 'more';
       ui.screen = 'app';
@@ -1198,6 +1385,7 @@ function onClick(event) {
       }
       clearLocalState();
       state = defaultState();
+      resetOnboardUi();
       ui.sheet = null;
       ui.tab = 'home';
       ui.date = todayISO();
@@ -1339,6 +1527,15 @@ function commitTreadmillField({ ei, si, field, value }) {
 function onSubmit(event) {
   const form = event.target;
   if (!(form instanceof HTMLFormElement)) return;
+  if (form.matches('[data-onboard-auth]')) {
+    event.preventDefault();
+    submitOnboardSignIn().catch((err) => {
+      ui.onboardSending = false;
+      ui.onboardNotice = err.message || 'Could not send the sign-in link';
+      render();
+    });
+    return;
+  }
   if (!event.target.matches('[data-auth-form]')) return;
   event.preventDefault();
   const email = (val('auth-email') || ui.authEmail || '').trim();

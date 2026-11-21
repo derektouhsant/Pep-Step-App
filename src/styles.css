@@ -1393,12 +1393,262 @@ img {
   box-shadow: var(--shadow);
 }
 
+.home-personal {
+  margin: 6px 0 0;
+  color: var(--navy);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.onboard {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--pale);
+  color: var(--text);
+  padding:
+    0
+    calc(20px + env(safe-area-inset-right, 0px))
+    calc(16px + env(safe-area-inset-bottom, 0px))
+    calc(20px + env(safe-area-inset-left, 0px));
+}
+
+.onboard.welcome {
+  background: var(--navy);
+  color: var(--white);
+}
+
+.onboard-nav {
+  display: grid;
+  grid-template-columns: 72px 1fr 72px;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) 0 10px;
+  background: var(--pale);
+}
+
+.onboard.welcome .onboard-nav {
+  background: var(--navy);
+}
+
+.onboard-nav button,
+.onboard-back {
+  min-height: 44px;
+  min-width: 64px;
+}
+
+.onboard-nav button {
+  border: 0;
+  background: transparent;
+  color: var(--steel);
+  font-weight: 800;
+  font-size: 15px;
+  padding: 8px 0;
+}
+
+.onboard-skip {
+  justify-self: end;
+}
+
+.onboard.welcome .onboard-nav button {
+  color: var(--white);
+}
+
+.onboard-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.onboard-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--light);
+}
+
+.onboard-dot.on {
+  background: var(--navy);
+  transform: scale(1.2);
+}
+
+.onboard.welcome .onboard-dot {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.onboard.welcome .onboard-dot.on {
+  background: var(--white);
+}
+
+.onboard-main {
+  flex: 1;
+  width: min(480px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 8px 0 12px;
+}
+
+.onboard.welcome .onboard-main {
+  justify-content: center;
+}
+
+.onboard-main h1,
+.onboard.welcome h1 {
+  font-family: var(--display);
+  font-size: 34px;
+  line-height: 1.15;
+  margin: 0 0 8px;
+  color: var(--navy);
+}
+
+.onboard.welcome h1,
+.onboard.welcome .tiny {
+  color: var(--white);
+}
+
+.onboard-motto {
+  margin: 0;
+  font-family: var(--display);
+  font-style: italic;
+  font-size: 20px;
+  color: var(--steel);
+}
+
+.onboard.welcome .onboard-motto {
+  color: var(--light);
+}
+
+.onboard-owned {
+  margin: 10px 0 0;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.onboard.welcome .onboard-owned {
+  color: var(--light);
+}
+
+.onboard-lead {
+  margin: 16px 0 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.onboard.welcome .onboard-lead {
+  color: var(--white);
+}
+
+.onboard-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.onboard-options.days {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.onboard-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--white);
+  color: var(--navy);
+  border: 2px solid transparent;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 16px 16px;
+  font-size: 16px;
+  font-weight: 800;
+  min-height: 56px;
+}
+
+.onboard-options.days .onboard-option {
+  text-align: center;
+  font-family: var(--display);
+  font-size: 32px;
+  min-height: 88px;
+}
+
+.onboard-option small {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.onboard-option.selected {
+  background: var(--navy);
+  color: var(--white);
+  border-color: var(--navy);
+}
+
+.onboard-option.selected small {
+  color: var(--light);
+}
+
+.onboard-note {
+  margin: 16px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.onboard-actions {
+  width: min(480px, 100%);
+  margin: 0 auto;
+  padding-top: 8px;
+}
+
+.onboard.welcome .primary-btn {
+  background: var(--white);
+  color: var(--navy);
+}
+
+.onboard-secondary {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  background: transparent;
+  color: var(--navy);
+  font-weight: 800;
+  font-size: 15px;
+  padding: 14px 18px;
+  border: 2px solid var(--navy);
+  border-radius: 999px;
+}
+
+.onboard .primary-btn:focus-visible,
+.onboard-secondary:focus-visible,
+.onboard-option:focus-visible,
+.onboard-nav button:focus-visible {
+  outline: 2px solid var(--light);
+  outline-offset: 3px;
+}
+
+.onboard .disclaimer,
+.onboard .warn,
+.onboard .account-notice {
+  margin-top: 12px;
+}
+
 @media (min-width: 560px) {
   body {
     background: var(--navy);
   }
 
-  .app-frame {
+  .app-frame,
+  .onboard {
     max-width: 430px;
     margin: 0 auto;
     min-height: 100dvh;

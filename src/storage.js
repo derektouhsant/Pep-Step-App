@@ -19,6 +19,7 @@ export function defaultState() {
     workoutHistory: [],
     plans: [],
     lastSets: {},
+    onboarding: null,
     meta: { userId: null, savedAt: 0 },
   };
 }
@@ -49,6 +50,7 @@ export function loadState() {
       workoutHistory: parsed.workoutHistory || [],
       plans: parsed.plans || [],
       lastSets: parsed.lastSets || {},
+      onboarding: parsed.onboarding && typeof parsed.onboarding === 'object' ? parsed.onboarding : null,
       meta: { userId: null, savedAt: 0, ...(parsed.meta || {}) },
     };
   } catch {
