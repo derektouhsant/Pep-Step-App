@@ -12,6 +12,7 @@ import {
 import { workoutTreadmillLines } from '../data/treadmill.js';
 import { formatMiles, visibleHealthWorkouts } from '../health/model.js';
 import { dayTotals, MEALS, renderEnergyBlock } from './diary.js';
+import { homePersonalLine, planSuggestion } from '../onboarding.js';
 import { activeProgramPlan } from '../program.js';
 import { renderTodayProgramCard } from './programCard.js';
 
@@ -154,14 +155,19 @@ function workoutCard(state, today) {
   const program = activeProgramPlan(state);
   if (program) return renderTodayProgramCard(program, today);
 
+  const suggestion = planSuggestion(state.onboarding);
   return `
-    <section class="card">
+    <section class="card" ${suggestion ? 'data-plan-suggestion' : ''}>
       <div class="row">
-        <div class="tiny">Workouts</div>
+        <div class="tiny">${suggestion ? 'Suggested for you' : 'Workouts'}</div>
         <span class="status-pill ${status.kind}">${esc(status.label)}</span>
       </div>
       <h3 class="home-card-title">Build a 16-week plan</h3>
-      <p class="muted">One tap builds four months of movement at home. Bodyweight practice and treadmill time, three days on and one day of rest.</p>
+      <p class="muted">${
+        suggestion
+          ? esc(suggestion)
+          : 'One tap builds four months of movement at home. Bodyweight practice and treadmill time, three days on and one day of rest.'
+      }</p>
       <button class="cta-btn" data-act="build-program">Build my 4-month plan</button>
       <p class="muted" style="margin:12px 0 0">${lastLine}</p>
       <button class="text-btn" style="width:100%;margin-top:8px" data-act="start-workout">Start an empty workout</button>
@@ -283,12 +289,14 @@ export function renderHome(state, extras = {}) {
   const imported = health?.supported && health.enabled ? visibleHealthWorkouts(health.workouts, state) : [];
   const todayImported = imported.filter((workout) => workout.finishedAt && isoFromTs(workout.finishedAt) === today);
   const extraDays = healthDaySet(imported);
+  const personal = homePersonalLine(state.onboarding);
 
   return `
     <div class="home-hello">
       <div class="tiny">${esc(greeting())}</div>
       <h2>${esc(formatFullDate(today))}</h2>
       <p class="muted">Longevity is Movement.</p>
+      ${personal ? `<p class="home-personal" data-home-personal>${esc(personal)}</p>` : ''}
     </div>
 
     <section class="card">

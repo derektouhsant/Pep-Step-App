@@ -1,7 +1,9 @@
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
+import { normalizeOnboarding } from '../onboarding.js';
 import { defaultState } from '../storage.js';
 import { DELETE_ACCOUNT_NOT_INSTALLED, isDeleteAccountMissing } from './deleteAccountError.js';
+import { loadProfile, saveProfile } from './profile.js';
 import { getSupabase, isCloudConfigured } from './supabase.js';
 import { mergeStates } from './merge.js';
 
@@ -16,6 +18,7 @@ const syncInfo = {
   lastSyncedAt: null,
   error: '',
   a2hsDismissed: false,
+  authReady: !isCloudConfigured(),
 };
 
 let hooks = {
@@ -124,15 +127,14 @@ function throwIfError(error, fallback) {
 }
 
 export async function cloudStateFromTables(supabase, userId) {
-  const [profileRes, daysRes, foodsRes, sessionsRes, plansRes] = await Promise.all([
-    supabase.from('profiles').select('goals,last_sets,updated_at').eq('user_id', userId).maybeSingle(),
+  const [profile, daysRes, foodsRes, sessionsRes, plansRes] = await Promise.all([
+    loadProfile(supabase, userId),
     supabase.from('diary_days').select('day,water,meals').eq('user_id', userId),
     supabase.from('custom_foods').select('id,name,serving,calories,carbs,protein,fat').eq('user_id', userId),
     supabase.from('workout_sessions').select('id,name,plan_id,started_at,finished_at,exercises').eq('user_id', userId),
     supabase.from('workout_plans').select('id,name,source,exercises,created_at').eq('user_id', userId),
   ]);
 
-  throwIfError(profileRes.error, 'Could not load profile');
   throwIfError(daysRes.error, 'Could not load diary');
   throwIfError(foodsRes.error, 'Could not load custom foods');
   throwIfError(sessionsRes.error, 'Could not load workouts');
@@ -166,8 +168,9 @@ export async function cloudStateFromTables(supabase, userId) {
     .sort((a, b) => toMillis(b.started_at) - toMillis(a.started_at))[0];
 
   const cloud = defaultState();
-  cloud.goals = { ...cloud.goals, ...(profileRes.data?.goals || {}) };
-  cloud.lastSets = profileRes.data?.last_sets || {};
+  cloud.goals = { ...cloud.goals, ...(profile?.goals || {}) };
+  cloud.lastSets = profile?.last_sets || {};
+  cloud.onboarding = normalizeOnboarding(profile?.onboarding);
   cloud.diary = diary;
   cloud.customFoods = (foodsRes.data || []).map((row) => ({
     id: row.id,
@@ -211,13 +214,7 @@ async function deleteMissing(supabase, table, userId, localIds) {
 export async function pushStateToCloud(supabase, userId, state) {
   const now = new Date().toISOString();
 
-  const { error: profileError } = await supabase.from('profiles').upsert({
-    user_id: userId,
-    goals: state.goals || {},
-    last_sets: state.lastSets || {},
-    updated_at: now,
-  });
-  throwIfError(profileError, 'Could not save goals');
+  await saveProfile(supabase, userId, state, now);
 
   const days = Object.entries(state.diary || {}).map(([day, data]) => ({
     user_id: userId,
@@ -529,13 +526,22 @@ export async function initCloud(options) {
   const supabase = getSupabase();
   if (!supabase) {
     syncInfo.status = 'unconfigured';
+    syncInfo.authReady = true;
     hooks.onChange();
     return;
   }
 
   listenForNativeAuth();
 
+  const authReadyTimer = setTimeout(() => {
+    if (syncInfo.authReady) return;
+    syncInfo.authReady = true;
+    hooks.onChange();
+  }, 4000);
+
   supabase.auth.onAuthStateChange(async (event, session) => {
+    clearTimeout(authReadyTimer);
+    syncInfo.authReady = true;
     applySession(session);
     if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
       if (session?.user) await hydrateFromCloud();
