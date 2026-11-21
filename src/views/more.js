@@ -116,7 +116,7 @@ function renderDeleteAccount() {
   return `
     <section class="card" data-delete-account>
       <div class="tiny">Delete account</div>
-      <p class="disclaimer">Permanently deletes your PepStep account and all synced diary and workout data. This cannot be undone.</p>
+      <p class="disclaimer">Permanently deletes your account and synced workouts, diary, and plan progress. This cannot be undone. On-device Apple Health data is left as it is.</p>
       <button type="button" class="danger-btn" data-act="delete-account">Delete account</button>
     </section>
   `;

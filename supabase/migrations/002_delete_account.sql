@@ -6,11 +6,13 @@
 -- Never put the service_role key in the PepStep app.
 --
 -- The function runs as the postgres role (security definer) and can delete only
--- auth.uid(). Public diary, food, and workout rows are removed explicitly, then
--- the auth user. Tables in 001_pepstep_sync.sql also use on delete cascade from
--- auth.users, so any other row owned through that foreign key goes with the user.
+-- auth.uid(). It removes that caller's rows from every PepStep user table, then
+-- the auth user. Plan progress for the 16-week movement plan lives on
+-- public.workout_plans (the program document, including the week cursor).
+-- Tables in 001_pepstep_sync.sql also use on delete cascade from auth.users.
+-- Apple Health samples are not stored here and are not deleted.
 -- Until this function exists, the app shows an error and does not sign the user out
--- or clear data on the device.
+-- or clear synced data on the device.
 
 create or replace function public.delete_own_account()
 returns void
