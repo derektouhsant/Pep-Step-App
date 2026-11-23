@@ -33,7 +33,7 @@ import {
   syncNow,
 } from './cloud/sync.js';
 import { clearHealthDeviceCache, connectHealth, disconnectHealth, getHealthSnapshot, initHealth } from './health/health.js';
-import { isNativeApp, initNativeShell } from './native/platform.js';
+import { isNativeAndroid, isNativeApp, initNativeShell } from './native/platform.js';
 
 let state = loadState();
 const ui = {
@@ -422,6 +422,7 @@ function viewHtml() {
     return renderMore(state, ui, getSyncInfo(), {
       health,
       native: isNativeApp(),
+      platform: isNativeAndroid() ? 'android' : isNativeApp() ? 'ios' : 'web',
       privacyHref: privacyHref(isNativeApp()),
     });
   }
@@ -1231,17 +1232,18 @@ function onClick(event) {
     },
     async 'toggle-health'() {
       const health = getHealthSnapshot();
+      const connect = health.provider === 'health-connect';
       try {
         if (health.enabled) {
           await disconnectHealth();
-          toast('Apple Health hidden on this iPhone');
+          toast(connect ? 'Health Connect hidden on this phone' : 'Apple Health hidden on this iPhone');
         } else {
-          toast('Opening Apple Health…');
+          toast(connect ? 'Opening Health Connect…' : 'Opening Apple Health…');
           await connectHealth();
-          toast('Apple Health connected');
+          toast(connect ? 'Health Connect connected' : 'Apple Health connected');
         }
       } catch (err) {
-        toast(err.message || 'Could not update Apple Health');
+        toast(err.message || (connect ? 'Could not update Health Connect' : 'Could not update Apple Health'));
       }
       render();
     },

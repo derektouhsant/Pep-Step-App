@@ -8,6 +8,14 @@ export function isNativeIos() {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
 }
 
+export function isNativeAndroid() {
+  return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
+}
+
+export function isNativeHealth() {
+  return isNativeIos() || isNativeAndroid();
+}
+
 export async function initNativeShell() {
   if (!isNativeApp()) return;
   try {

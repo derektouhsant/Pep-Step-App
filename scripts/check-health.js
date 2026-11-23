@@ -1,3 +1,4 @@
+import { healthConnectReadGranted, healthConnectUnavailableMessage } from '../src/health/copy.js';
 import {
   averageHeartRate,
   duplicatesManualSession,
@@ -172,5 +173,49 @@ const failedMore = renderMore(emptyState, { authEmail: '' }, { configured: false
 assert(failedMore.includes('Missing com.apple.developer.healthkit entitlement.'), 'more shows the Health error under the switch');
 assert(failedMore.includes('data-health-error'), 'health error is marked in the card');
 assert(failedMore.includes('aria-checked="false"'), 'a failed request leaves the switch off');
+
+const androidHealth = { ...health, provider: 'health-connect' };
+const androidHome = renderHome(emptyState, { health: androidHealth });
+assert(androidHome.includes('Health Connect'), 'android home names Health Connect');
+assert(!androidHome.includes('Apple Health'), 'android home does not say Apple Health');
+assert(androidHome.includes('On this phone'), 'android home says the data stays on the phone');
+assert(androidHome.includes('4,321') || androidHome.includes('4321'), 'android home shows today steps');
+const androidMore = renderMore(emptyState, { authEmail: '' }, { configured: false, status: 'unconfigured', user: null }, {
+  native: true,
+  platform: 'android',
+  health: androidHealth,
+});
+assert(androidMore.includes('aria-label="Health Connect on"'), 'android switch is labelled Health Connect');
+assert(androidMore.includes('Nothing is written to Health Connect'), 'android card says the read is one-way');
+assert(androidMore.includes('read steps and walking, running, and treadmill sessions'), 'android card names steps and exercise only');
+assert(!androidMore.includes('heart rate'), 'android card does not mention heart rate');
+assert(!androidMore.includes('active energy'), 'android card does not mention active energy');
+assert(androidMore.includes('Play Store'), 'android card explains a missing Health Connect install');
+assert(!androidMore.includes('Apple Health'), 'android more does not say Apple Health');
+assert(androidMore.includes('Health Connect imports stay on this phone only'), 'android device copy names Health Connect');
+const androidWorkouts = renderWorkouts(emptyState, { workoutView: 'home' }, [], { health: androidHealth });
+assert(androidWorkouts.includes('Health Connect'), 'android history badge names Health Connect');
+assert(!androidWorkouts.includes('Apple Health'), 'android history does not say Apple Health');
+const androidOff = renderMore(emptyState, { authEmail: '' }, { configured: false, status: 'unconfigured', user: null }, {
+  native: true,
+  platform: 'android',
+  health: { ...androidHealth, enabled: false, status: 'off', error: 'Health Connect is not available on this phone.' },
+});
+assert(androidOff.includes('aria-checked="false"'), 'android switch stays off when Health Connect is missing');
+assert(androidOff.includes('data-health-error'), 'android shows the Health Connect error under the switch');
+
+assert(
+  healthConnectUnavailableMessage('Health Connect needs an update.') ===
+    'Health Connect needs an update. Update it from the Play Store, then try again.',
+  'an outdated Health Connect install asks for an update'
+);
+assert(
+  healthConnectUnavailableMessage('Health Connect is unavailable on this device.').includes('Play Store'),
+  'a missing Health Connect install points to the Play Store'
+);
+assert(healthConnectReadGranted({ readAuthorized: ['steps'] }), 'steps alone can connect');
+assert(healthConnectReadGranted({ readAuthorized: ['workouts', 'heartRate'] }), 'exercise sessions can connect');
+assert(!healthConnectReadGranted({ readAuthorized: ['heartRate'] }), 'heart rate without steps or exercise does not connect');
+assert(!healthConnectReadGranted({ readAuthorized: [] }), 'a denial leaves Health Connect disconnected');
 
 console.log('health checks ok');
