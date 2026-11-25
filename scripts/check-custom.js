@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { dayTotals, renderDiary } from '../src/views/diary.js';
 import { mergeStates } from '../src/cloud/merge.js';
 import { cloudStateFromTables, getSyncInfo, pushStateToCloud } from '../src/cloud/sync.js';
 import {
@@ -6,6 +7,8 @@ import {
   buildCustomExercise,
   buildCustomFood,
   cleanName,
+  macroIssue,
+  parseMacroInput,
   customExerciseToRow,
   isMissingCustomExercisesTable,
   normalizeCustomExerciseList,
@@ -57,7 +60,14 @@ const detailed = buildCustomFood({
   protein: '18',
   fat: '9',
 });
-assert(detailed.serving === '1 cup' && detailed.calories === 240 && detailed.carbs === 0, 'optional food fields are kept and negatives are dropped');
+assert(detailed.serving === '1 cup' && detailed.calories === 240 && detailed.protein === 18 && detailed.fat === 9, 'optional food fields are kept');
+assert(detailed.carbs === 0, 'a stored negative macro is treated as zero');
+assert(buildCustomFood({ id: 'bad', name: 'Chili', protein: '-4' }) == null, 'a typed negative macro is rejected');
+assert(buildCustomFood({ id: 'bad', name: 'Chili', carbs: 'lots' }) == null, 'a non-numeric macro is rejected');
+assert(parseMacroInput('').ok && parseMacroInput('').value === 0, 'a blank macro is zero');
+assert(parseMacroInput('12.5').value === 12.5, 'decimals are kept');
+assert(macroIssue({ calories: '10', protein: '-1', carbs: '', fat: '' }).includes('Protein'), 'the form names the invalid macro');
+assert(macroIssue({ calories: '', protein: '', carbs: '', fat: '' }) === '', 'blank macros are allowed');
 
 const strength = buildCustomExercise({ id: 'e1', name: 'Yard work' });
 assert(strength.log === 'strength' && strength.bodyPart === 'full-body', 'an exercise name alone is strength');
@@ -151,9 +161,15 @@ const draft = renderFoodSheet({
   sheet: { type: 'food', meal: 'lunch', query: 'yard chili', draft: { name: 'yard chili', serving: '', calories: '' } },
   foods,
 });
-assert(draft.includes('Name is enough to save'), 'the food form says a name is enough');
+assert(draft.includes('Name is required'), 'the food form says the name is required');
+assert(draft.includes('data-macro-panel'), 'macros are on the form, not behind another step');
+assert(draft.includes('Macros per serving'), 'the macro section is labeled');
+assert(draft.includes('Serving size') && draft.includes('1 cup, 100 g'), 'serving size includes a unit example');
+for (const label of ['Calories', 'Protein (g)', 'Carbs (g)', 'Fat (g)', 'How many servings']) {
+  assert(draft.includes(label), `the food form shows ${label}`);
+}
+assert((draft.match(/inputmode="decimal"/g) || []).length >= 5, 'macro fields open a numeric keypad');
 assert(draft.includes('Save &amp; add') || draft.includes('Save & add'), 'saving a new food also adds it');
-assert(draft.includes('Serving') && draft.includes('Calories'), 'serving and calories are optional fields');
 assertClean('food form', draft);
 
 const editing = renderFoodSheet({
@@ -161,12 +177,15 @@ const editing = renderFoodSheet({
   sheet: {
     type: 'food',
     meal: 'lunch',
-    draft: { id: 'c1', name: 'Homemade chili', serving: '1 cup', calories: '240', carbs: '', protein: '', fat: '' },
+    draft: { id: 'c1', name: 'Homemade chili', serving: '1 cup', calories: '240', carbs: '30', protein: '28', fat: '12' },
   },
   foods,
 });
 assert(editing.includes('Delete saved food'), 'a saved food can be deleted');
 assert(editing.includes('>Save<'), 'editing a food does not log another copy');
+assert(editing.includes('value="240"') && editing.includes('value="28"') && editing.includes('value="30"') && editing.includes('value="12"'), 'edit shows the saved macros');
+assert(!editing.includes('How many servings'), 'editing the saved food does not add another logged copy');
+assert(savedFood.includes('P 0g') && savedFood.includes('C 0g') && savedFood.includes('F 0g'), 'a saved food row shows protein, carbs, and fat');
 
 const exerciseForm = renderExerciseSheet({
   sheet: { purpose: 'log', draft: { name: 'Yard work', kind: 'strength', bodyPart: 'full-body' } },
@@ -226,6 +245,52 @@ const swapped = swapProgramExercise(plan, {
 });
 assert(swapped?.name === 'Yard work' && swapped.exerciseId === 'e1', 'a custom exercise can be swapped into a plan');
 assert(!EXERCISES.some((item) => item.id === 'e1'), 'the custom exercise is not part of the built-in library');
+
+const chili = buildCustomFood({
+  id: 'chili',
+  name: 'Garden chili',
+  serving: '1 cup',
+  calories: '320',
+  protein: '28',
+  carbs: '30',
+  fat: '12',
+});
+const loggedDay = {
+  water: 0,
+  meals: {
+    breakfast: [
+      {
+        id: 'log-1',
+        foodId: chili.id,
+        name: chili.name,
+        serving: chili.serving,
+        calories: chili.calories,
+        carbs: chili.carbs,
+        protein: chili.protein,
+        fat: chili.fat,
+        servings: 2,
+      },
+    ],
+    lunch: [],
+    dinner: [],
+    snacks: [],
+  },
+};
+const totals = dayTotals(loggedDay);
+assert(totals.calories === 640 && totals.protein === 56 && totals.carbs === 60 && totals.fat === 24, 'custom food macros scale with servings like catalog foods');
+const diary = renderDiary(
+  { goals: { calories: 2200, carbs: 220, protein: 170, fat: 70, waterCups: 8 } },
+  { date: '2026-11-25' },
+  loggedDay
+);
+assert(diary.includes('C 60') && diary.includes('P 56') && diary.includes('F 24'), 'the logged line shows scaled macros');
+assert(diary.includes('56/170g') && diary.includes('60/220g') && diary.includes('24/70g'), 'daily macro totals include the custom food');
+const richRow = renderFoodSheet({
+  mealLabel: 'Breakfast',
+  sheet: { type: 'food', meal: 'breakfast', query: 'garden', servings: 1 },
+  foods: [chili],
+});
+assert(richRow.includes('1 cup · 320 cal · P 28g · C 30g · F 12g'), 'the My item row shows serving size and macros');
 
 const calls = [];
 function fakeClient(resultFor) {
@@ -300,6 +365,10 @@ for (const phrase of [
   'revoke all on table public.custom_exercises from anon',
   'on delete cascade',
   'notify pgrst',
+  'add column if not exists protein double precision not null default 0',
+  'add column if not exists carbs double precision not null default 0',
+  'add column if not exists fat double precision not null default 0',
+  'add column if not exists calories double precision not null default 0',
 ]) {
   assert(sql.includes(phrase), `migration should include: ${phrase}`);
 }

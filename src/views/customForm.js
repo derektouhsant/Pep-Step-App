@@ -17,14 +17,20 @@ export function renderAddCustomButton({ act, query, quiet = false }) {
   return `<button type="button" class="${cls}" data-act="${esc(act)}" data-name="${esc(name)}">${esc(addCustomLabel(name))}</button>`;
 }
 
+function macroSummary(food) {
+  const cal = Math.round(Number(food.calories) || 0);
+  const protein = round1(Number(food.protein) || 0);
+  const carbs = round1(Number(food.carbs) || 0);
+  const fat = round1(Number(food.fat) || 0);
+  return `${cal} cal · P ${protein}g · C ${carbs}g · F ${fat}g`;
+}
+
 function foodRow(food) {
   const mine = food.custom ? renderMineTag() : '';
   const side = food.custom
     ? `<button type="button" class="text-btn" data-act="edit-custom-food" data-id="${esc(food.id)}">Edit</button>`
     : `<div class="food-cals">${Math.round(Number(food.calories) || 0)}</div>`;
-  const meta = food.custom
-    ? `${food.serving} · ${Math.round(Number(food.calories) || 0)} cal`
-    : food.serving;
+  const meta = food.custom ? `${food.serving} · ${macroSummary(food)}` : food.serving;
   return `
     <div class="list-row">
       <button type="button" class="list-hit" data-act="pick-food" data-id="${esc(food.id)}">
@@ -114,6 +120,14 @@ function renderFoodSearch(mealLabel, sheet, foods) {
     </div>`;
 }
 
+function macroInput(id, label, value) {
+  return `
+    <div class="field macro-field">
+      <label for="${id}">${label}</label>
+      <input id="${id}" data-keep="${id}" type="number" min="0" step="any" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${esc(value ?? '')}" />
+    </div>`;
+}
+
 function renderFoodDraft(mealLabel, sheet) {
   const draft = sheet.draft || {};
   const editing = Boolean(draft.id);
@@ -125,16 +139,21 @@ function renderFoodDraft(mealLabel, sheet) {
           <h3 style="margin:0;color:var(--navy)">${editing ? 'Edit food' : `Add to ${esc(mealLabel)}`}</h3>
           <button type="button" class="text-btn" data-act="food-draft-back">Back</button>
         </div>
-        <p class="muted">Name is enough to save. Serving and calories are optional.</p>
+        <p class="muted">Name is required. Macros are for one serving and can be left blank.</p>
         <form data-custom-food>
           ${draftField('c-name', 'Name', draft.name, 'e.g. Homemade chili')}
-          ${draftField('c-serving', 'Serving', draft.serving, 'e.g. 1 cup')}
-          <div class="macro-inputs">
-            ${draftField('c-cal', 'Calories', draft.calories, '0', 'inputmode="decimal"')}
-            ${draftField('c-c', 'Carbs (g)', draft.carbs, '0', 'inputmode="decimal"')}
-            ${draftField('c-p', 'Protein (g)', draft.protein, '0', 'inputmode="decimal"')}
-            ${draftField('c-f', 'Fat (g)', draft.fat, '0', 'inputmode="decimal"')}
-          </div>
+          <section class="macro-panel" data-macro-panel>
+            <h4>Macros per serving</h4>
+            ${draftField('c-serving', 'Serving size', draft.serving, 'e.g. 1 cup, 100 g')}
+            ${macroInput('c-cal', 'Calories', draft.calories)}
+            <div class="macro-inputs macros-3">
+              ${macroInput('c-p', 'Protein (g)', draft.protein)}
+              ${macroInput('c-c', 'Carbs (g)', draft.carbs)}
+              ${macroInput('c-f', 'Fat (g)', draft.fat)}
+            </div>
+            ${editing ? '' : macroInput('c-qty', 'How many servings', draft.quantity ?? '1')}
+            ${sheet.macroError ? `<p class="warn" data-macro-error>${esc(sheet.macroError)}</p>` : ''}
+          </section>
           <button type="button" class="primary-btn" data-act="save-custom">${editing ? 'Save' : 'Save & add'}</button>
         </form>
         ${

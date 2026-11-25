@@ -52,4 +52,19 @@ grant select, insert, update, delete on table public.custom_exercises to authent
 comment on table public.custom_exercises is
   'Exercises a user added because they were not in the PepStep library. Owner-only via RLS.';
 
+-- Per-serving macros for foods a person adds. These columns already exist
+-- when 001_pepstep_sync.sql has been run. The adds are safe to repeat.
+alter table public.custom_foods
+  add column if not exists serving text not null default '1 serving',
+  add column if not exists calories double precision not null default 0,
+  add column if not exists carbs double precision not null default 0,
+  add column if not exists protein double precision not null default 0,
+  add column if not exists fat double precision not null default 0;
+
+comment on column public.custom_foods.calories is 'Calories for one serving.';
+comment on column public.custom_foods.protein is 'Protein grams for one serving.';
+comment on column public.custom_foods.carbs is 'Carbohydrate grams for one serving.';
+comment on column public.custom_foods.fat is 'Fat grams for one serving.';
+comment on column public.custom_foods.serving is 'Serving size label, such as 1 cup or 100 g.';
+
 notify pgrst, 'reload schema';

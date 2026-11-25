@@ -197,7 +197,7 @@ Vite + vanilla HTML/CSS/JS, wrapped for iPhone and Android with Capacitor 8. Nav
 
 ## Foods and exercises you add
 
-If a food or exercise is not in the list, type its name and tap **Add “that name”** (or **Add custom** before you search). Name is enough to save. For a food you can also add a serving and calories. For an exercise you can pick strength or cardio, and a muscle group.
+If a food or exercise is not in the list, type its name and tap **Add “that name”** (or **Add custom** before you search). Name is enough to save. For a food you can also set the serving size (such as 1 cup or 100 g) and the calories, protein, carbs, and fat for that serving. Those numbers scale with how many servings you log. For an exercise you can pick strength or cardio, and a muscle group.
 
 Saved items show up again in search with a small **My item** tag. Edit or delete them from that row. The new item is added to the meal, workout, or plan you were already in.
 

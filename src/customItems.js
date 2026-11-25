@@ -20,6 +20,41 @@ function nonNeg(value) {
   return Math.round(n * 10) / 10;
 }
 
+/** Empty is 0. A typed value must be a non-negative number. Stored numbers are clamped by the caller. */
+export function parseMacroInput(value) {
+  if (typeof value === 'number') return { ok: true, value: nonNeg(value) };
+  const raw = String(value ?? '')
+    .trim()
+    .replace(/,/g, '');
+  if (!raw) return { ok: true, value: 0 };
+  if (!/^\d+(\.\d+)?$/.test(raw)) return { ok: false, value: 0 };
+  return { ok: true, value: Math.round(Number(raw) * 10) / 10 };
+}
+
+export function macroIssue(draft = {}) {
+  const fields = [
+    ['calories', 'Calories'],
+    ['protein', 'Protein'],
+    ['carbs', 'Carbs'],
+    ['fat', 'Fat'],
+  ];
+  for (const [key, label] of fields) {
+    if (!parseMacroInput(draft[key]).ok) return `${label} needs a number that is 0 or higher.`;
+  }
+  return '';
+}
+
+export function parseServingsInput(value) {
+  const raw = String(value ?? '')
+    .trim()
+    .replace(/,/g, '');
+  if (!raw) return { ok: true, value: 1 };
+  if (!/^\d+(\.\d+)?$/.test(raw)) return { ok: false, value: 1 };
+  const n = Math.round(Number(raw) * 10) / 10;
+  if (n <= 0) return { ok: false, value: 1 };
+  return { ok: true, value: n };
+}
+
 export function addCustomLabel(query) {
   const name = cleanName(query);
   if (!name) return 'Add custom';
@@ -42,6 +77,13 @@ export function shouldOfferAdd(items, query) {
 export function buildCustomFood({ id, name, serving, calories, carbs, protein, fat } = {}) {
   const cleaned = cleanName(name);
   if (!cleaned || !id) return null;
+  const numbers = {
+    calories: parseMacroInput(calories),
+    carbs: parseMacroInput(carbs),
+    protein: parseMacroInput(protein),
+    fat: parseMacroInput(fat),
+  };
+  if (Object.values(numbers).some((item) => !item.ok)) return null;
   const label = String(serving ?? '')
     .replace(/\s+/g, ' ')
     .trim()
@@ -50,10 +92,10 @@ export function buildCustomFood({ id, name, serving, calories, carbs, protein, f
     id: String(id),
     name: cleaned,
     serving: label || '1 serving',
-    calories: nonNeg(calories),
-    carbs: nonNeg(carbs),
-    protein: nonNeg(protein),
-    fat: nonNeg(fat),
+    calories: numbers.calories.value,
+    carbs: numbers.carbs.value,
+    protein: numbers.protein.value,
+    fat: numbers.fat.value,
     custom: true,
   };
 }

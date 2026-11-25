@@ -1476,3 +1476,44 @@ img {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
+
+.macro-panel {
+  margin: 4px 0 12px;
+  padding: 12px 12px 4px;
+  background: var(--pale);
+  border-radius: 16px;
+}
+
+.macro-panel h4 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: var(--navy);
+}
+
+.macro-panel .field label {
+  font-size: 13px;
+  color: var(--navy);
+}
+
+.macro-panel input {
+  background: var(--white);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--navy);
+  min-height: 48px;
+}
+
+.macro-inputs.macros-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.macro-field input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.macro-field input[type='number']::-webkit-outer-spin-button,
+.macro-field input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

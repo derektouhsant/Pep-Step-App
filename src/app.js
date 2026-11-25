@@ -6,6 +6,8 @@ import {
   buildCustomFood,
   cleanName,
   exerciseKindFromLog,
+  macroIssue,
+  parseServingsInput,
   normalizeCustomExerciseList,
   normalizeCustomFoodList,
 } from './customItems.js';
@@ -714,6 +716,7 @@ function captureOpenDraft() {
       carbs: fieldValue('c-c') ?? '',
       protein: fieldValue('c-p') ?? '',
       fat: fieldValue('c-f') ?? '',
+      quantity: fieldValue('c-qty') ?? sheet.draft.quantity ?? '',
     };
   }
   if (sheet.type === 'custom-exercise') {
@@ -750,6 +753,15 @@ function saveCustomFoodFromSheet() {
   const sheet = ui.sheet;
   if (!sheet || sheet.type !== 'food' || !sheet.draft) return;
   const draft = sheet.draft;
+  const issue = macroIssue(draft);
+  const servings = parseServingsInput(draft.id ? 1 : draft.quantity);
+  if (issue || !servings.ok) {
+    const message = issue || 'How many servings needs a number above 0.';
+    ui.sheet = { ...sheet, draft, macroError: message };
+    toast(message);
+    render();
+    return;
+  }
   const food = buildCustomFood({
     id: draft.id || `custom-${uid()}`,
     name: draft.name,
@@ -760,7 +772,9 @@ function saveCustomFoodFromSheet() {
     fat: draft.fat,
   });
   if (!food) {
+    ui.sheet = { ...sheet, draft, macroError: 'Name this food first' };
     toast('Name this food first');
+    render();
     return;
   }
   state.customFoods = upsertById(state.customFoods, food);
@@ -772,7 +786,7 @@ function saveCustomFoodFromSheet() {
     return;
   }
   const meal = sheet.meal;
-  logFood(food, meal, 1);
+  logFood(food, meal, servings.value);
   persist();
   ui.sheet = null;
   toast(`Added to ${labelMeal(meal)}`);
@@ -1034,7 +1048,8 @@ function onClick(event) {
         ...ui.sheet,
         food: null,
         confirmDelete: false,
-        draft: { name, serving: '', calories: '', carbs: '', protein: '', fat: '' },
+        draft: { name, serving: '', calories: '', carbs: '', protein: '', fat: '', quantity: '1' },
+        macroError: '',
       };
       render();
     },
@@ -1051,11 +1066,11 @@ function onClick(event) {
         draft: {
           id: food.id,
           name: food.name,
-          serving: food.serving === '1 serving' ? '' : food.serving,
-          calories: food.calories ? String(food.calories) : '',
-          carbs: food.carbs ? String(food.carbs) : '',
-          protein: food.protein ? String(food.protein) : '',
-          fat: food.fat ? String(food.fat) : '',
+          serving: food.serving || '',
+          calories: String(food.calories ?? 0),
+          carbs: String(food.carbs ?? 0),
+          protein: String(food.protein ?? 0),
+          fat: String(food.fat ?? 0),
         },
       };
       render();
