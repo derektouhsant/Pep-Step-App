@@ -1,5 +1,10 @@
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
+import {
+  customExerciseToRow,
+  isMissingCustomExercisesTable,
+  rowToCustomExercise,
+} from '../customItems.js';
 import { defaultState } from '../storage.js';
 import { DELETE_ACCOUNT_NOT_INSTALLED, isDeleteAccountMissing } from './deleteAccountError.js';
 import { getSupabase, isCloudConfigured } from './supabase.js';
@@ -16,6 +21,7 @@ const syncInfo = {
   lastSyncedAt: null,
   error: '',
   a2hsDismissed: false,
+  customExercisesRemote: null,
 };
 
 let hooks = {
@@ -123,11 +129,18 @@ function throwIfError(error, fallback) {
   if (error) throw new Error(error.message || fallback);
 }
 
+function noteCustomExerciseTable(error) {
+  if (!isMissingCustomExercisesTable(error)) return false;
+  syncInfo.customExercisesRemote = false;
+  return true;
+}
+
 export async function cloudStateFromTables(supabase, userId) {
-  const [profileRes, daysRes, foodsRes, sessionsRes, plansRes] = await Promise.all([
+  const [profileRes, daysRes, foodsRes, exercisesRes, sessionsRes, plansRes] = await Promise.all([
     supabase.from('profiles').select('goals,last_sets,updated_at').eq('user_id', userId).maybeSingle(),
     supabase.from('diary_days').select('day,water,meals').eq('user_id', userId),
     supabase.from('custom_foods').select('id,name,serving,calories,carbs,protein,fat').eq('user_id', userId),
+    supabase.from('custom_exercises').select('id,name,body_part,log').eq('user_id', userId),
     supabase.from('workout_sessions').select('id,name,plan_id,started_at,finished_at,exercises').eq('user_id', userId),
     supabase.from('workout_plans').select('id,name,source,exercises,created_at').eq('user_id', userId),
   ]);
@@ -135,6 +148,11 @@ export async function cloudStateFromTables(supabase, userId) {
   throwIfError(profileRes.error, 'Could not load profile');
   throwIfError(daysRes.error, 'Could not load diary');
   throwIfError(foodsRes.error, 'Could not load custom foods');
+  const customExercisesMissing = noteCustomExerciseTable(exercisesRes.error);
+  if (!customExercisesMissing) {
+    throwIfError(exercisesRes.error, 'Could not load custom exercises');
+    syncInfo.customExercisesRemote = true;
+  }
   throwIfError(sessionsRes.error, 'Could not load workouts');
   throwIfError(plansRes.error, 'Could not load plans');
 
@@ -179,6 +197,9 @@ export async function cloudStateFromTables(supabase, userId) {
     fat: Number(row.fat) || 0,
     custom: true,
   }));
+  cloud.customExercises = customExercisesMissing
+    ? []
+    : (exercisesRes.data || []).map((row) => rowToCustomExercise(row)).filter(Boolean);
   cloud.workoutHistory = workoutHistory;
   cloud.activeWorkout = activeRow
     ? {
@@ -248,6 +269,36 @@ export async function pushStateToCloud(supabase, userId, state) {
   }
   await deleteMissing(supabase, 'custom_foods', userId, new Set((state.customFoods || []).map((f) => f.id)));
 
+  const exerciseRows = (state.customExercises || [])
+    .map((exercise) => customExerciseToRow(userId, exercise, now))
+    .filter(Boolean);
+  let exercisesReady = true;
+  if (exerciseRows.length) {
+    const { error } = await supabase.from('custom_exercises').upsert(exerciseRows, { onConflict: 'user_id,id' });
+    if (noteCustomExerciseTable(error)) exercisesReady = false;
+    else throwIfError(error, 'Could not save custom exercises');
+  }
+  if (exercisesReady) {
+    const listedExercises = await supabase.from('custom_exercises').select('id').eq('user_id', userId);
+    if (noteCustomExerciseTable(listedExercises.error)) exercisesReady = false;
+    else {
+      throwIfError(listedExercises.error, 'Could not list custom exercises');
+      const exerciseIds = new Set(exerciseRows.map((row) => row.id));
+      const extraExercises = (listedExercises.data || [])
+        .map((row) => row.id)
+        .filter((id) => !exerciseIds.has(id));
+      if (extraExercises.length) {
+        const { error } = await supabase
+          .from('custom_exercises')
+          .delete()
+          .eq('user_id', userId)
+          .in('id', extraExercises);
+        throwIfError(error, 'Could not prune custom exercises');
+      }
+      syncInfo.customExercisesRemote = true;
+    }
+  }
+
   const historyRows = (state.workoutHistory || []).map((w) => ({
     id: w.id,
     user_id: userId,
@@ -305,9 +356,10 @@ export async function clearCloudData() {
   const supabase = getSupabase();
   const userId = syncInfo.user?.id;
   if (!supabase || !userId) return;
-  const tables = ['diary_days', 'custom_foods', 'workout_sessions', 'workout_plans', 'profiles'];
+  const tables = ['diary_days', 'custom_foods', 'custom_exercises', 'workout_sessions', 'workout_plans', 'profiles'];
   for (const table of tables) {
     const { error } = await supabase.from(table).delete().eq('user_id', userId);
+    if (table === 'custom_exercises' && noteCustomExerciseTable(error)) continue;
     throwIfError(error, `Could not clear ${table}`);
   }
 }

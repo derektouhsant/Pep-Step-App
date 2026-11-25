@@ -1,4 +1,6 @@
 import { BODY_PARTS, bodyPartName, isCardio } from '../data/exercises.js';
+import { cleanName } from '../customItems.js';
+import { renderExerciseAddSlot, renderExerciseRows, renderMineTag } from './customForm.js';
 import { isTreadmillBlock, workoutTreadmillLines } from '../data/treadmill.js';
 import { healthBrand } from '../health/copy.js';
 import { formatMiles, visibleHealthWorkouts } from '../health/model.js';
@@ -30,7 +32,7 @@ function coverageGrid(exercises) {
 }
 
 export function renderWorkouts(state, ui, catalog, extras = {}) {
-  if (ui.workoutView === 'browse') return renderBrowse(ui, catalog);
+  if (ui.workoutView === 'browse') return renderBrowse(ui, catalog, extras);
   if (ui.workoutView === 'logger') return renderLogger(state, catalog);
   if (ui.workoutView === 'plans') return renderPlans(state);
   if (ui.workoutView === 'program') return renderProgram(state);
@@ -160,17 +162,29 @@ function renderHome(state, health) {
   `;
 }
 
-function renderBrowse(ui, catalog) {
+function exerciseMatches(exercise, q) {
+  if (!q) return true;
+  return (
+    exercise.name.toLowerCase().includes(q) || String(exercise.equipment || '').toLowerCase().includes(q)
+  );
+}
+
+function renderBrowse(ui, catalog, extras = {}) {
   const part = ui.browsePart || 'chest';
   const q = (ui.search || '').trim().toLowerCase();
-  const list = catalog
-    .filter((e) => e.bodyPart === part)
-    .filter((e) => !q || e.name.toLowerCase().includes(q) || e.equipment.toLowerCase().includes(q));
+  const list = catalog.filter((e) => e.bodyPart === part && exerciseMatches(e, q));
+  const elsewhere = q
+    ? catalog.filter((e) => e.custom && e.bodyPart !== part && exerciseMatches(e, q))
+    : [];
+  const offer = renderExerciseAddSlot({ query: ui.search, pool: catalog });
+  const typed = cleanName(ui.search);
 
   return `
     ${backBtn()}
     <h2 style="margin:0 0 10px;color:var(--navy)">Exercises</h2>
     <input class="search" data-act="search" data-keep="search" placeholder="Search this body part" value="${esc(ui.search || '')}" />
+    ${extras.libraryNote ? `<p class="muted" data-custom-library-note>${esc(extras.libraryNote)}</p>` : ''}
+    ${offer}
     <div class="part-grid" style="margin-bottom:12px">
       ${BODY_PARTS.map(
         (p) => `<button class="part-chip ${p.id === part ? 'active' : ''}" data-act="set-part" data-part="${p.id}">${esc(p.name)}</button>`
@@ -179,21 +193,13 @@ function renderBrowse(ui, catalog) {
     <section class="card">
       ${
         list.length
-          ? list
-              .map(
-                (e) => `
-        <div class="list-row">
-          <div>
-            <div class="food-name">${esc(e.name)}</div>
-            <div class="food-meta">${esc(e.equipment)} · ${esc(bodyPartName(e.bodyPart))}${
-              e.log === 'treadmill' ? ' · Incline, speed, time' : ''
-            }</div>
-          </div>
-          <button class="steel-btn" data-act="add-exercise" data-id="${esc(e.id)}">Add</button>
-        </div>`
-              )
-              .join('')
-          : `<p class="muted">No exercises match.</p>`
+          ? renderExerciseRows(list)
+          : `<p class="muted">${typed ? 'No exercises match.' : 'Pick a move, or add your own.'}</p>`
+      }
+      ${
+        elsewhere.length
+          ? `<p class="tiny" style="margin:12px 0 0">Also in your items</p>${renderExerciseRows(elsewhere)}`
+          : ''
       }
     </section>
   `;
@@ -479,20 +485,26 @@ function renderBuilder(ui) {
 function renderVideos(ui, catalog) {
   const part = ui.browsePart || 'chest';
   const q = (ui.search || '').trim().toLowerCase();
-  const list = catalog
-    .filter((e) => e.bodyPart === part)
-    .filter((e) => !q || e.name.toLowerCase().includes(q));
+  const list = catalog.filter((e) => e.bodyPart === part && (!q || e.name.toLowerCase().includes(q)));
+  const typed = cleanName(ui.search);
+  const offer = renderExerciseAddSlot({ query: ui.search, pool: catalog });
 
   return `
     ${backBtn()}
     <h2 style="margin:0 0 8px;color:var(--navy)">Video library</h2>
     <p class="muted">Placeholders for now — form videos will land here later.</p>
     <input class="search" data-act="search" data-keep="search" placeholder="Search videos" value="${esc(ui.search || '')}" />
+    ${offer}
     <div class="part-grid" style="margin-bottom:12px">
       ${BODY_PARTS.map(
         (p) => `<button class="part-chip ${p.id === part ? 'active' : ''}" data-act="set-part" data-part="${p.id}">${esc(p.name)}</button>`
       ).join('')}
     </div>
+    ${
+      list.length
+        ? ''
+        : `<p class="muted">${typed ? 'No exercises match.' : 'Pick a move, or add your own.'}</p>`
+    }
     ${list
       .map(
         (e) => `
@@ -501,7 +513,7 @@ function renderVideos(ui, catalog) {
           <div class="play">${icons.play}</div>
         </div>
         <div style="padding:12px 14px 14px">
-          <div class="food-name">${esc(e.name)}</div>
+          <div class="food-name">${esc(e.name)}${e.custom ? renderMineTag() : ''}</div>
           <div class="food-meta">${esc(bodyPartName(e.bodyPart))} · Video coming soon</div>
         </div>
       </button>`

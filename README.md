@@ -194,3 +194,11 @@ The privacy policy is a public page at `/privacy` (https://pep-step-app.vercel.a
 ## Stack
 
 Vite + vanilla HTML/CSS/JS, wrapped for iPhone and Android with Capacitor 8. Navy / light-blue PepStep palette. No orange or green accents. Optional Supabase Auth (email magic link) and Postgres tables for sync. Apple Health and Health Connect are read-only and stay on device.
+
+## Foods and exercises you add
+
+If a food or exercise is not in the list, type its name and tap **Add “that name”** (or **Add custom** before you search). Name is enough to save. For a food you can also add a serving and calories. For an exercise you can pick strength or cardio, and a muscle group.
+
+Saved items show up again in search with a small **My item** tag. Edit or delete them from that row. The new item is added to the meal, workout, or plan you were already in.
+
+They stay on the device either way. Signed-in custom foods sync with the tables from `001_pepstep_sync.sql`. Signed-in custom exercises sync after you paste `supabase/migrations/004_custom_exercises.sql` into the Supabase SQL editor and run it. Until that script has been run, those exercises stay on the device and the rest of sync still works.

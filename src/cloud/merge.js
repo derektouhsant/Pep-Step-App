@@ -99,6 +99,7 @@ export function mergeStates(local, cloud) {
   const left = local || {};
   const right = cloud || {};
   const customFoods = mergeById(left.customFoods, right.customFoods);
+  const customExercises = mergeById(left.customExercises, right.customExercises);
   const plans = mergeById(left.plans, right.plans);
   const workoutHistory = mergeById(left.workoutHistory, right.workoutHistory)
     .sort((a, b) => (b.finishedAt || 0) - (a.finishedAt || 0))
@@ -107,6 +108,7 @@ export function mergeStates(local, cloud) {
     goals: mergeGoals(left.goals, right.goals),
     diary: mergeDiary(left.diary, right.diary),
     customFoods,
+    customExercises,
     workoutHistory,
     plans,
     lastSets: mergeLastSets(left.lastSets, right.lastSets),

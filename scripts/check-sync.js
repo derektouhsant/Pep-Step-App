@@ -18,6 +18,7 @@ const local = {
     },
   },
   customFoods: [{ id: 'c1', name: 'Chili' }],
+  customExercises: [{ id: 'e1', name: 'Yard work', bodyPart: 'full-body', log: 'strength' }],
   workoutHistory: [
     {
       id: 'w1',
@@ -68,6 +69,7 @@ const cloud = {
     },
   },
   customFoods: [{ id: 'c2', name: 'Soup' }],
+  customExercises: [{ id: 'e2', name: 'Pool laps', bodyPart: 'cardio', log: 'duration' }],
   workoutHistory: [{ id: 'w2', name: 'Pull', finishedAt: 200, startedAt: 10 }],
   plans: [{ id: 'p2', name: 'B' }],
   lastSets: {
@@ -86,6 +88,7 @@ assert(merged.diary['2026-09-16'].water === 6, 'water should use max cups');
 assert(merged.diary['2026-09-16'].meals.breakfast.length === 2, 'breakfast items should union by id');
 assert(merged.diary['2026-09-15'].water === 8, 'cloud-only diary day should appear');
 assert(merged.customFoods.length === 2, 'custom foods should union');
+assert(merged.customExercises.map((item) => item.id).sort().join(',') === 'e1,e2', 'custom exercises should union');
 assert(merged.workoutHistory.map((w) => w.id).join(',') === 'w2,w1', 'history should union and sort newest first');
 assert(merged.plans.length === 2, 'plans should union');
 assert(merged.lastSets.bench.weight === 135, 'newer last-set should win');

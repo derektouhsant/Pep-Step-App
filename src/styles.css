@@ -1416,3 +1416,63 @@ img {
     width: max-content;
   }
 }
+
+.list-hit,
+.list-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.list-hit {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mine-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--pale);
+  color: var(--steel);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  vertical-align: 1px;
+}
+
+.add-custom {
+  display: block;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  min-height: 44px;
+  border-radius: 14px;
+  border: 1.5px dashed var(--steel);
+  background: var(--pale);
+  color: var(--navy);
+  font-weight: 800;
+  font-size: 15px;
+  text-align: left;
+}
+
+.add-custom.quiet {
+  background: var(--white);
+}
+
+.choice-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
