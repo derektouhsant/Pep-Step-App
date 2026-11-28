@@ -9,6 +9,7 @@
   --line: rgba(10, 37, 64, 0.1);
   --shadow: 0 10px 30px rgba(10, 37, 64, 0.08);
   --radius: 16px;
+  --section-gap: 14px;
   --tab-h: calc(64px + env(safe-area-inset-bottom, 0px));
   --header-h: 56px;
   --font: 'Manrope', system-ui, sans-serif;
@@ -183,7 +184,24 @@ img {
 
 .card + .card,
 .section-gap {
-  margin-top: 14px;
+  margin-top: var(--section-gap);
+}
+
+/* Page sections that are not all cards (the workouts tile grid, then History).
+   The gap is the same 14px rhythm as .card + .card on Home. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--section-gap);
+}
+
+.stack > * {
+  min-width: 0;
+}
+
+.stack > .card,
+.stack > .section-gap {
+  margin-top: 0;
 }
 
 .row {

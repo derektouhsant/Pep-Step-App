@@ -103,6 +103,7 @@ function renderHome(state, health) {
   const recent = historyEntries(state, health);
   const brand = healthBrand(health);
   return `
+    <div class="stack">
     ${
       active
         ? `<section class="card hero-card">
@@ -130,7 +131,7 @@ function renderHome(state, health) {
           </section>`
     }
 
-    <div class="grid-2 section-gap">
+    <div class="grid-2">
       <button class="tile" data-act="open-browse">
         <h3>Browse exercises</h3>
         <p>Chest, back, legs, and more</p>
@@ -157,6 +158,7 @@ function renderHome(state, health) {
           : `<p class="muted" style="margin:8px 0 0">Finished workouts will show up here.</p>`
       }
     </section>
+    </div>
   `;
 }
 
