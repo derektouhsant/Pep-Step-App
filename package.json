@@ -16,7 +16,8 @@
     "check-sync": "node scripts/check-sync.js",
     "check-delete": "node scripts/check-delete-account.js",
     "check-health": "node scripts/check-health.js",
-    "check-program": "node scripts/check-program.js"
+    "check-program": "node scripts/check-program.js",
+    "check-custom": "node scripts/check-custom.js"
   },
   "devDependencies": {
     "@capacitor/android": "^8.5.2",

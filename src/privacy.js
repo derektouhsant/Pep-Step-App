@@ -21,7 +21,7 @@ export function renderPrivacy({ fromApp = false } = {}) {
         </div>
       </header>
       <article class="privacy-body">
-        <p class="tiny">Effective November 20, 2026</p>
+        <p class="tiny">Effective November 25, 2026</p>
         <h1>Privacy policy</h1>
         <p>PepStep (<a href="https://pepstepguide.com" target="_blank" rel="noopener noreferrer">pepstepguide.com</a>) operates the PepStep app. PepStep is family-owned and veteran-owned.</p>
         <p>This policy covers the PepStep website, the iPhone app, and the Android app: Home, Diary, Workouts, and More. It is a log for meals, movement, and workouts. Questions go to <a href="mailto:support@pepstepguide.com">support@pepstepguide.com</a>.</p>
@@ -29,7 +29,7 @@ export function renderPrivacy({ fromApp = false } = {}) {
         <h2>Information the app collects</h2>
         <p><strong>Email, if you sign in.</strong> Sign-in is optional. PepStep sends your email address to Supabase, which emails you a one-time magic link. There is no password.</p>
         <p><strong>Diary and food logs you enter.</strong> Foods and meals (name, serving, number of servings, calories, carbohydrates, protein, and fat), water, daily goals (calories, carbohydrates, protein, fat, and water), and custom foods you save (name, serving, calories, and those same amounts).</p>
-        <p><strong>Workout logs you enter.</strong> Session name, start and finish time, exercises, and the sets you type (weight and reps; minutes and calories for cardio; incline, speed, and time for treadmill). Also workout plans you save (name and exercises) and the last values PepStep keeps so it can show previous performance.</p>
+        <p><strong>Workout logs you enter.</strong> Session name, start and finish time, exercises, and the sets you type (weight and reps; minutes and calories for cardio; incline, speed, and time for treadmill). Also workout plans you save (name and exercises), exercises you add yourself (name, strength or cardio, and an optional muscle group), and the last values PepStep keeps so it can show previous performance.</p>
         <p><strong>Apple Health, on iPhone, only if you turn it on.</strong> PepStep asks for read-only access to steps, heart rate, active energy, and workouts. It does not write to Apple Health. With permission, the app reads today’s step count and walking, running, and treadmill workouts from about the last 90 days, including duration, distance, energy burned on the workout, and heart-rate samples used to show an average heart rate. That information stays on the iPhone, including a local cache. It is not uploaded to your PepStep account and it is not stored in Supabase.</p>
         <p><strong>Health Connect, on Android, only if you turn it on.</strong> PepStep asks Health Connect for read-only access to steps and exercise sessions, and for access to older data so it can look back about 90 days. It does not write to Health Connect. It does not read heart rate or a separate active-energy permission. With permission, the app reads today’s step count and walking, running, and treadmill sessions from about the last 90 days, including duration and distance. Some phones only share about the last 30 days unless you also allow access to older data. That information stays on the phone, including a local cache. It is not uploaded to your PepStep account and it is not stored in Supabase. If Health Connect is not installed, PepStep tells you and does not read anything.</p>
 
@@ -47,7 +47,7 @@ export function renderPrivacy({ fromApp = false } = {}) {
 
         <h2>How to delete your account</h2>
         <p>Open the More tab while you are signed in and tap <strong>Delete account</strong>. PepStep asks you to confirm twice. The warning says this permanently deletes your account and all synced diary and workout data, and that it cannot be undone.</p>
-        <p>When you confirm, PepStep deletes the sign-in and the synced records (profile, diary days, custom foods, workout sessions, and workout plans), signs you out, and clears PepStep data stored on that device, including the Apple Health cache or the Health Connect cache. The connection inside PepStep is turned off so that cache is not filled again until you connect it. Data that remains in the Apple Health app, or in Health Connect, is left as it is.</p>
+        <p>When you confirm, PepStep deletes the sign-in and the synced records (profile, diary days, custom foods, custom exercises, workout sessions, and workout plans), signs you out, and clears PepStep data stored on that device, including the Apple Health cache or the Health Connect cache. The connection inside PepStep is turned off so that cache is not filled again until you connect it. Data that remains in the Apple Health app, or in Health Connect, is left as it is.</p>
         <p>You can also email <a href="mailto:support@pepstepguide.com">support@pepstepguide.com</a> and ask us to delete the account.</p>
         <p>Signing out leaves the copy on that device in place. Clear data (also on the More tab) removes diary and workout data and, when you are signed in, the synced copy. It does not delete the sign-in. Delete account does.</p>
 
@@ -64,7 +64,7 @@ export function renderPrivacy({ fromApp = false } = {}) {
         <p>PepStep is not directed at children under 13, and PepStep does not knowingly collect personal information from children under 13. If you believe a child has provided personal information, email <a href="mailto:support@pepstepguide.com">support@pepstepguide.com</a> and we will delete it.</p>
 
         <h2>Changes</h2>
-        <p>PepStep may update this policy. When that happens, the effective date on this page will change. This version is effective November 20, 2026.</p>
+        <p>PepStep may update this policy. When that happens, the effective date on this page will change. This version is effective November 25, 2026.</p>
 
         <h2>Contact</h2>
         <p>PepStep<br />pepstepguide.com<br /><a href="mailto:support@pepstepguide.com">support@pepstepguide.com</a></p>

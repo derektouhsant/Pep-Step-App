@@ -421,12 +421,12 @@ export function advanceProgram(plan, completedIndex, generation) {
   return true;
 }
 
-export function swapProgramExercise(plan, { weekIndex, dayIndex, exerciseIndex, exerciseId }) {
+export function swapProgramExercise(plan, { weekIndex, dayIndex, exerciseIndex, exerciseId, exercise }) {
   const doc = programDoc(plan);
   const day = doc?.weeks?.[weekIndex]?.days?.[dayIndex];
   if (!day || day.rest) return null;
   const current = day.exercises?.[exerciseIndex];
-  const cat = getExercise(exerciseId);
+  const cat = exercise || getExercise(exerciseId);
   if (!current || !cat) return null;
   const treadmill = cat.log === 'treadmill';
   const cardio = treadmill || cat.log === 'duration' || cat.bodyPart === 'cardio';

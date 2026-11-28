@@ -1,3 +1,5 @@
+import { normalizeCustomExerciseList, normalizeCustomFoodList } from './customItems.js';
+
 const KEY = 'pepstep:v1';
 
 const DEFAULT_GOALS = {
@@ -15,6 +17,7 @@ export function defaultState() {
     goals: { ...DEFAULT_GOALS },
     diary: {},
     customFoods: [],
+    customExercises: [],
     activeWorkout: null,
     workoutHistory: [],
     plans: [],
@@ -45,7 +48,8 @@ export function loadState() {
       ...parsed,
       goals: { ...DEFAULT_GOALS, ...(parsed.goals || {}) },
       diary: parsed.diary || {},
-      customFoods: parsed.customFoods || [],
+      customFoods: normalizeCustomFoodList(parsed.customFoods),
+      customExercises: normalizeCustomExerciseList(parsed.customExercises),
       workoutHistory: parsed.workoutHistory || [],
       plans: parsed.plans || [],
       lastSets: parsed.lastSets || {},

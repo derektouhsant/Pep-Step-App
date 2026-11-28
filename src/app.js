@@ -1,9 +1,20 @@
 import { FOODS } from './data/foods.js';
-import { EXERCISES, BODY_PARTS, getExercise, exercisesByPart } from './data/exercises.js';
+import { EXERCISES, BODY_PARTS, exercisesByPart } from './data/exercises.js';
+import {
+  CUSTOM_EXERCISE_LOCAL_NOTE,
+  buildCustomExercise,
+  buildCustomFood,
+  cleanName,
+  exerciseKindFromLog,
+  macroIssue,
+  parseServingsInput,
+  normalizeCustomExerciseList,
+  normalizeCustomFoodList,
+} from './customItems.js';
 import { formatBout, isTreadmillBlock, splitDuration, treadmillBout } from './data/treadmill.js';
 import { mountWheels } from './wheels.js';
 import { loadState, saveState, getDay, emptyDay, defaultState, clearLocalState } from './storage.js';
-import { esc, uid, todayISO, addDays, round1, num } from './utils.js';
+import { esc, uid, todayISO, addDays, num } from './utils.js';
 import { icons } from './icons.js';
 import { renderDiary, MEALS, dayTotals, calorieProgress } from './views/diary.js';
 import { renderHome, firstEmptyMeal } from './views/home.js';
@@ -18,6 +29,7 @@ import {
   swapProgramExercise,
 } from './program.js';
 import { renderMore, renderInstallTip } from './views/more.js';
+import { renderExerciseAddSlot, renderExerciseRows, renderExerciseSheet, renderFoodSheet } from './views/customForm.js';
 import { isPrivacyPath, privacyHref, renderPrivacy } from './privacy.js';
 import {
   initCloud,
@@ -96,7 +108,21 @@ function paintToast() {
 }
 
 function allFoods() {
-  return [...state.customFoods, ...FOODS];
+  return [...normalizeCustomFoodList(state.customFoods), ...FOODS];
+}
+
+function allExercises() {
+  return [...normalizeCustomExerciseList(state.customExercises), ...EXERCISES];
+}
+
+function findExercise(id) {
+  return allExercises().find((exercise) => exercise.id === id) || null;
+}
+
+function libraryNote() {
+  const sync = getSyncInfo();
+  if (sync.user && sync.customExercisesRemote === false) return CUSTOM_EXERCISE_LOCAL_NOTE;
+  return '';
 }
 
 function renderSheet() {
@@ -104,6 +130,7 @@ function renderSheet() {
   if (!s) return '';
 
   if (s.type === 'food') return foodSheet(s);
+  if (s.type === 'custom-exercise') return renderExerciseSheet({ sheet: s, note: libraryNote() });
   if (s.type === 'goals') return goalsSheet();
   if (s.type === 'entry') return entrySheet(s);
   if (s.type === 'video') return videoSheet(s);
@@ -118,64 +145,7 @@ function renderSheet() {
 }
 
 function foodSheet(s) {
-  const q = (s.query || '').trim().toLowerCase();
-  const matches = allFoods()
-    .filter((f) => !q || f.name.toLowerCase().includes(q))
-    .slice(0, 40);
-  const selected = s.food;
-  const servings = num(s.servings, 1);
-
-  return `
-    <div class="overlay" data-act="close-sheet">
-      <div class="sheet" data-stop>
-        <div class="grab"></div>
-        <div class="row">
-          <h3 style="margin:0;color:var(--navy)">Add to ${esc(labelMeal(s.meal))}</h3>
-          <button class="text-btn" data-act="close-sheet">Close</button>
-        </div>
-        ${
-          selected
-            ? `
-          <p class="food-name" style="margin:12px 0 4px">${esc(selected.name)}</p>
-          <p class="muted">${esc(selected.serving)} · ${Math.round(selected.calories * servings)} cal · C ${round1(selected.carbs * servings)} · P ${round1(selected.protein * servings)} · F ${round1(selected.fat * servings)}</p>
-          <div class="field">
-            <label>Servings</label>
-            <input data-act="food-servings" inputmode="decimal" value="${esc(s.servings ?? 1)}" />
-          </div>
-          <button class="primary-btn" data-act="confirm-food">Add food</button>
-          <button class="text-btn" style="width:100%;margin-top:8px" data-act="food-back">Back to search</button>
-        `
-            : `
-          <input class="search" data-act="food-query" data-keep="food-query" placeholder="Search foods" value="${esc(s.query || '')}" />
-          <div id="food-results">
-            ${matches
-              .map(
-                (f) => `
-              <button class="list-row" data-act="pick-food" data-id="${esc(f.id)}">
-                <div>
-                  <div class="food-name">${esc(f.name)}</div>
-                  <div class="food-meta">${esc(f.serving)}${f.custom ? ' · custom' : ''}</div>
-                </div>
-                <div class="food-cals">${Math.round(f.calories)}</div>
-              </button>`
-              )
-              .join('') || `<p class="muted">No matches. Log a custom food below.</p>`}
-          </div>
-          <h3 style="margin:16px 0 8px;color:var(--navy)">Custom food</h3>
-          <div class="field"><label>Name</label><input data-keep="c-name" placeholder="e.g. Homemade chili" /></div>
-          <div class="field"><label>Serving label</label><input data-keep="c-serving" placeholder="e.g. 1 cup" /></div>
-          <div class="macro-inputs">
-            <div class="field"><label>Calories</label><input data-keep="c-cal" inputmode="decimal" placeholder="250" /></div>
-            <div class="field"><label>Carbs (g)</label><input data-keep="c-c" inputmode="decimal" placeholder="20" /></div>
-            <div class="field"><label>Protein (g)</label><input data-keep="c-p" inputmode="decimal" placeholder="25" /></div>
-            <div class="field"><label>Fat (g)</label><input data-keep="c-f" inputmode="decimal" placeholder="8" /></div>
-          </div>
-          <button class="primary-btn" data-act="save-custom">Save &amp; add</button>
-        `
-        }
-      </div>
-    </div>
-  `;
+  return renderFoodSheet({ mealLabel: labelMeal(s.meal), sheet: s, foods: allFoods() });
 }
 
 function goalsSheet() {
@@ -218,7 +188,7 @@ function entrySheet(s) {
 }
 
 function videoSheet(s) {
-  const ex = getExercise(s.id);
+  const ex = findExercise(s.id);
   if (!ex) return '';
   return `
     <div class="overlay" data-act="close-sheet">
@@ -227,6 +197,11 @@ function videoSheet(s) {
         <div class="video-thumb"><div class="play">${icons.play}</div></div>
         <h3 style="margin:0;color:var(--navy)">${esc(ex.name)}</h3>
         <p class="muted">${esc(ex.equipment)} · Video coming soon</p>
+        ${
+          ex.custom
+            ? `<button type="button" class="text-btn" style="width:100%;margin-bottom:8px" data-act="edit-custom-exercise" data-id="${esc(ex.id)}">Edit</button>`
+            : ''
+        }
         <button class="primary-btn" data-act="close-sheet">Close</button>
       </div>
     </div>
@@ -239,9 +214,12 @@ function swapSheet(s) {
   const current = day?.exercises?.[s.index];
   const part = s.part || current?.bodyPart || 'chest';
   const q = (s.query || '').trim().toLowerCase();
-  const matches = exercisesByPart(part)
-    .filter((ex) => !q || ex.name.toLowerCase().includes(q))
+  const pool = allExercises();
+  const matches = pool
+    .filter((ex) => ex.bodyPart === part)
+    .filter((ex) => !q || ex.name.toLowerCase().includes(q) || String(ex.equipment || '').toLowerCase().includes(q))
     .slice(0, 40);
+  const note = libraryNote();
   return `
     <div class="overlay" data-act="close-sheet">
       <div class="sheet" data-stop>
@@ -251,26 +229,16 @@ function swapSheet(s) {
           <button class="text-btn" data-act="close-sheet">Close</button>
         </div>
         <p class="muted">${current ? `Replacing ${esc(current.name)}. The sets and reps stay with this slot.` : 'Pick a movement from the library.'}</p>
+        ${note ? `<p class="muted" data-custom-library-note>${esc(note)}</p>` : ''}
         <input class="search" data-act="swap-query" data-keep="swap-query" placeholder="Search exercises" value="${esc(s.query || '')}" />
+        ${renderExerciseAddSlot({ query: s.query, pool })}
         <div class="part-grid" style="margin-bottom:12px">
           ${BODY_PARTS.map(
             (item) =>
               `<button class="part-chip ${item.id === part ? 'active' : ''}" data-act="swap-part" data-part="${item.id}">${esc(item.name)}</button>`
           ).join('')}
         </div>
-        ${
-          matches
-            .map(
-              (ex) => `
-            <button class="list-row" data-act="pick-swap" data-id="${esc(ex.id)}">
-              <div>
-                <div class="food-name">${esc(ex.name)}</div>
-                <div class="food-meta">${esc(ex.equipment)}</div>
-              </div>
-            </button>`
-            )
-            .join('') || `<p class="muted">No exercises match.</p>`
-        }
+        ${matches.length ? renderExerciseRows(matches, { action: 'pick-swap', actionLabel: 'Swap' }) : `<p class="muted">${q ? 'No exercises match.' : 'Pick a move, or add your own.'}</p>`}
       </div>
     </div>
   `;
@@ -417,7 +385,7 @@ function tabbar() {
 function viewHtml() {
   const health = getHealthSnapshot();
   if (ui.tab === 'home') return renderHome(state, { health });
-  if (ui.tab === 'workouts') return renderWorkouts(state, ui, EXERCISES, { health });
+  if (ui.tab === 'workouts') return renderWorkouts(state, ui, allExercises(), { health, libraryNote: libraryNote() });
   if (ui.tab === 'more') {
     return renderMore(state, ui, getSyncInfo(), {
       health,
@@ -498,7 +466,7 @@ function setsForExercise(ex, prev) {
 }
 
 function addExerciseToWorkout(exerciseId) {
-  const ex = getExercise(exerciseId);
+  const ex = findExercise(exerciseId);
   if (!ex) return;
   const w = ensureWorkout();
   if (w.exercises.some((e) => e.exerciseId === ex.id)) {
@@ -524,12 +492,13 @@ function addExerciseToWorkout(exerciseId) {
 }
 
 function addExerciseToBuilder(exerciseId) {
-  const ex = getExercise(exerciseId);
+  const ex = findExercise(exerciseId);
   if (!ex) return;
   ui.builder.exercises.push({
     exerciseId: ex.id,
     name: ex.name,
     bodyPart: ex.bodyPart,
+    log: ex.log,
   });
   ui.workoutView = 'builder';
   ui.builderReturn = 'workout';
@@ -659,7 +628,7 @@ function startPlan(planId) {
     planId: plan.id,
     startedAt: Date.now(),
     exercises: (Array.isArray(plan.exercises) ? plan.exercises : []).map((ex) => {
-      const cat = getExercise(ex.exerciseId);
+      const cat = findExercise(ex.exerciseId);
       const log = cat?.log || ex.log || (ex.bodyPart === 'cardio' ? 'duration' : 'strength');
       const prev = state.lastSets[ex.exerciseId];
       return {
@@ -728,7 +697,208 @@ function val(keep) {
   return document.querySelector(`[data-keep="${keep}"]`)?.value ?? '';
 }
 
+function fieldValue(keep) {
+  const el = document.querySelector(`[data-keep="${keep}"]`);
+  return el ? el.value : null;
+}
+
+function captureOpenDraft() {
+  const sheet = ui.sheet;
+  if (!sheet) return;
+  if (sheet.type === 'food' && sheet.draft) {
+    const name = fieldValue('c-name');
+    if (name == null) return;
+    sheet.draft = {
+      ...sheet.draft,
+      name,
+      serving: fieldValue('c-serving') ?? '',
+      calories: fieldValue('c-cal') ?? '',
+      carbs: fieldValue('c-c') ?? '',
+      protein: fieldValue('c-p') ?? '',
+      fat: fieldValue('c-f') ?? '',
+      quantity: fieldValue('c-qty') ?? sheet.draft.quantity ?? '',
+    };
+  }
+  if (sheet.type === 'custom-exercise') {
+    const name = fieldValue('c-name');
+    if (name == null) return;
+    sheet.draft = { ...sheet.draft, name };
+  }
+}
+
+function upsertById(list, item) {
+  const next = Array.isArray(list) ? list.slice() : [];
+  const index = next.findIndex((entry) => entry.id === item.id);
+  if (index >= 0) next[index] = item;
+  else next.unshift(item);
+  return next;
+}
+
+function logFood(food, meal, servings = 1) {
+  day().meals[meal].push({
+    id: uid(),
+    foodId: food.id,
+    name: food.name,
+    serving: food.serving,
+    calories: food.calories,
+    carbs: food.carbs,
+    protein: food.protein,
+    fat: food.fat,
+    servings,
+  });
+}
+
+function saveCustomFoodFromSheet() {
+  captureOpenDraft();
+  const sheet = ui.sheet;
+  if (!sheet || sheet.type !== 'food' || !sheet.draft) return;
+  const draft = sheet.draft;
+  const issue = macroIssue(draft);
+  const servings = parseServingsInput(draft.id ? 1 : draft.quantity);
+  if (issue || !servings.ok) {
+    const message = issue || 'How many servings needs a number above 0.';
+    ui.sheet = { ...sheet, draft, macroError: message };
+    toast(message);
+    render();
+    return;
+  }
+  const food = buildCustomFood({
+    id: draft.id || `custom-${uid()}`,
+    name: draft.name,
+    serving: draft.serving,
+    calories: draft.calories,
+    carbs: draft.carbs,
+    protein: draft.protein,
+    fat: draft.fat,
+  });
+  if (!food) {
+    ui.sheet = { ...sheet, draft, macroError: 'Name this food first' };
+    toast('Name this food first');
+    render();
+    return;
+  }
+  state.customFoods = upsertById(state.customFoods, food);
+  if (draft.id) {
+    persist();
+    ui.sheet = { type: 'food', meal: sheet.meal, query: food.name, servings: 1, food: null };
+    toast('Food saved');
+    render();
+    return;
+  }
+  const meal = sheet.meal;
+  logFood(food, meal, servings.value);
+  persist();
+  ui.sheet = null;
+  toast(`Added to ${labelMeal(meal)}`);
+  render();
+}
+
+function openCustomExerciseSheet({ name = '', purpose = 'log', bodyPart, returnSheet = null, exercise = null }) {
+  const kind = exercise ? exerciseKindFromLog(exercise.log) : 'strength';
+  const part = exercise?.bodyPart || bodyPart || (kind === 'cardio' ? 'cardio' : 'full-body');
+  ui._keep = 'c-name';
+  ui._caret = cleanName(exercise?.name || name).length;
+  ui.sheet = {
+    type: 'custom-exercise',
+    purpose,
+    id: exercise?.id || null,
+    week: returnSheet?.week,
+    day: returnSheet?.day,
+    index: returnSheet?.index,
+    returnSheet,
+    confirmDelete: false,
+    draft: {
+      name: exercise?.name || name || '',
+      kind,
+      bodyPart: part,
+      partTouched: Boolean(exercise),
+    },
+  };
+}
+
+function closeCustomExerciseSheet() {
+  const back = ui.sheet?.returnSheet || null;
+  ui.sheet = back;
+  render();
+}
+
+function saveCustomExerciseFromSheet() {
+  captureOpenDraft();
+  const sheet = ui.sheet;
+  if (!sheet || sheet.type !== 'custom-exercise') return;
+  const draft = sheet.draft || {};
+  const built = buildCustomExercise({
+    id: sheet.id || `custom-ex-${uid()}`,
+    name: draft.name,
+    kind: draft.kind,
+    bodyPart: draft.bodyPart,
+  });
+  if (!built) {
+    toast('Name this exercise first');
+    return;
+  }
+  state.customExercises = upsertById(state.customExercises, built);
+  if (sheet.id) {
+    persist();
+    ui.sheet = sheet.returnSheet || null;
+    toast('Exercise saved');
+    render();
+    return;
+  }
+  if (sheet.purpose === 'swap') {
+    const plan = activeProgramPlan(state);
+    const next = swapProgramExercise(plan, {
+      weekIndex: sheet.week,
+      dayIndex: sheet.day,
+      exerciseIndex: sheet.index,
+      exerciseId: built.id,
+      exercise: built,
+    });
+    persist();
+    if (!next) {
+      ui.sheet = sheet.returnSheet || null;
+      toast('Saved. Could not swap it into this slot.');
+      render();
+      return;
+    }
+    ui.sheet = null;
+    toast(`Swapped in ${next.name}`);
+    render();
+    return;
+  }
+  if (sheet.purpose === 'video') {
+    persist();
+    ui.sheet = { type: 'video', id: built.id };
+    toast('Exercise saved');
+    render();
+    return;
+  }
+  persist();
+  ui.sheet = null;
+  if (sheet.purpose === 'plan') addExerciseToBuilder(built.id);
+  else addExerciseToWorkout(built.id);
+}
+
+function exercisePurpose() {
+  if (ui.sheet?.type === 'swap-exercise') return 'swap';
+  if (ui.workoutView === 'videos') return 'video';
+  if (ui.workoutView === 'browse' && ui.builderReturn === 'from-builder') return 'plan';
+  return 'log';
+}
+
+function closestAction(event) {
+  const boundary = event.target.closest?.('[data-stop]');
+  let node = event.target;
+  while (node && node !== document) {
+    if (node.dataset?.act) return node;
+    if (boundary && node === boundary) return null;
+    node = node.parentElement;
+  }
+  return null;
+}
+
 function onClick(event) {
+  captureOpenDraft();
   const overlay = event.target.closest('.overlay');
   const stop = event.target.closest('[data-stop]');
   if (overlay && !stop) {
@@ -738,7 +908,7 @@ function onClick(event) {
     return;
   }
 
-  const btn = event.target.closest('[data-act]');
+  const btn = closestAction(event);
   if (!btn) return;
   const act = btn.dataset.act;
   if (act === 'open-privacy' && (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)) {
@@ -869,43 +1039,57 @@ function onClick(event) {
       toast(`Added to ${labelMeal(meal)}`);
       render();
     },
-    'save-custom'() {
-      const name = val('c-name').trim();
-      const serving = val('c-serving').trim() || '1 serving';
-      const calories = num(val('c-cal'));
-      const carbs = num(val('c-c'));
-      const protein = num(val('c-p'));
-      const fat = num(val('c-f'));
-      if (!name) {
-        toast('Name this food first');
-        return;
-      }
-      const food = {
-        id: `custom-${uid()}`,
-        name,
-        serving,
-        calories,
-        carbs,
-        protein,
-        fat,
-        custom: true,
+    'start-custom-food'() {
+      if (ui.sheet?.type !== 'food') return;
+      const name = btn.dataset.name || ui.sheet.query || '';
+      ui._keep = 'c-name';
+      ui._caret = cleanName(name).length;
+      ui.sheet = {
+        ...ui.sheet,
+        food: null,
+        confirmDelete: false,
+        draft: { name, serving: '', calories: '', carbs: '', protein: '', fat: '', quantity: '1' },
+        macroError: '',
       };
-      state.customFoods.unshift(food);
-      const meal = ui.sheet.meal;
-      day().meals[meal].push({
-        id: uid(),
-        foodId: food.id,
-        name,
-        serving,
-        calories,
-        carbs,
-        protein,
-        fat,
-        servings: 1,
-      });
+      render();
+    },
+    'edit-custom-food'() {
+      if (ui.sheet?.type !== 'food') return;
+      const food = normalizeCustomFoodList(state.customFoods).find((item) => item.id === btn.dataset.id);
+      if (!food) return;
+      ui._keep = 'c-name';
+      ui._caret = food.name.length;
+      ui.sheet = {
+        ...ui.sheet,
+        food: null,
+        confirmDelete: false,
+        draft: {
+          id: food.id,
+          name: food.name,
+          serving: food.serving || '',
+          calories: String(food.calories ?? 0),
+          carbs: String(food.carbs ?? 0),
+          protein: String(food.protein ?? 0),
+          fat: String(food.fat ?? 0),
+        },
+      };
+      render();
+    },
+    'food-draft-back'() {
+      if (ui.sheet?.type !== 'food') return;
+      ui.sheet = { type: 'food', meal: ui.sheet.meal, query: ui.sheet.query || '', servings: 1, food: null };
+      render();
+    },
+    'save-custom'() {
+      saveCustomFoodFromSheet();
+    },
+    'delete-custom-food'() {
+      const id = ui.sheet?.draft?.id;
+      if (!id) return;
+      state.customFoods = (state.customFoods || []).filter((food) => food.id !== id);
       persist();
-      ui.sheet = null;
-      toast('Custom food added');
+      ui.sheet = { type: 'food', meal: ui.sheet.meal, query: ui.sheet.query || '', servings: 1, food: null };
+      toast('Removed from your foods');
       render();
     },
     'save-goals'() {
@@ -1090,11 +1274,13 @@ function onClick(event) {
     'pick-swap'() {
       if (ui.sheet?.type !== 'swap-exercise') return;
       const plan = activeProgramPlan(state);
+      const chosen = findExercise(btn.dataset.id);
       const next = swapProgramExercise(plan, {
         weekIndex: ui.sheet.week,
         dayIndex: ui.sheet.day,
         exerciseIndex: ui.sheet.index,
         exerciseId: btn.dataset.id,
+        exercise: chosen,
       });
       if (!next) {
         toast('Could not swap that exercise');
@@ -1142,6 +1328,70 @@ function onClick(event) {
     },
     'play-video'() {
       ui.sheet = { type: 'video', id: btn.dataset.id };
+      render();
+    },
+    'start-custom-exercise'() {
+      const fromSwap = ui.sheet?.type === 'swap-exercise';
+      const purpose = exercisePurpose();
+      openCustomExerciseSheet({
+        name: btn.dataset.name || '',
+        purpose,
+        bodyPart: fromSwap ? ui.sheet.part : ui.browsePart,
+        returnSheet: fromSwap ? { ...ui.sheet } : null,
+      });
+      render();
+    },
+    'edit-custom-exercise'() {
+      const exercise = normalizeCustomExerciseList(state.customExercises).find((item) => item.id === btn.dataset.id);
+      if (!exercise) return;
+      const fromSwap = ui.sheet?.type === 'swap-exercise';
+      openCustomExerciseSheet({
+        purpose: exercisePurpose(),
+        bodyPart: exercise.bodyPart,
+        returnSheet: fromSwap ? { ...ui.sheet } : null,
+        exercise,
+      });
+      render();
+    },
+    'close-custom-exercise'() {
+      closeCustomExerciseSheet();
+    },
+    'custom-kind'() {
+      if (ui.sheet?.type !== 'custom-exercise') return;
+      const kind = btn.dataset.kind === 'cardio' ? 'cardio' : 'strength';
+      const draft = { ...(ui.sheet.draft || {}), kind };
+      if (!draft.partTouched) {
+        draft.bodyPart = kind === 'cardio' ? 'cardio' : ui.sheet.returnSheet?.part || ui.browsePart || 'full-body';
+      }
+      ui.sheet = { ...ui.sheet, draft, confirmDelete: false };
+      render();
+    },
+    'custom-part'() {
+      if (ui.sheet?.type !== 'custom-exercise') return;
+      const draft = { ...(ui.sheet.draft || {}), bodyPart: btn.dataset.part, partTouched: true };
+      ui.sheet = { ...ui.sheet, draft, confirmDelete: false };
+      render();
+    },
+    'save-custom-exercise'() {
+      saveCustomExerciseFromSheet();
+    },
+    'ask-delete-custom'() {
+      if (!ui.sheet) return;
+      ui.sheet = { ...ui.sheet, confirmDelete: true };
+      render();
+    },
+    'cancel-delete-custom'() {
+      if (!ui.sheet) return;
+      ui.sheet = { ...ui.sheet, confirmDelete: false };
+      render();
+    },
+    'delete-custom-exercise'() {
+      const id = ui.sheet?.id;
+      if (!id) return;
+      state.customExercises = (state.customExercises || []).filter((exercise) => exercise.id !== id);
+      persist();
+      ui.sheet = ui.sheet.returnSheet || null;
+      toast('Removed from your exercises');
       render();
     },
     'reset-data'() {
@@ -1341,7 +1591,17 @@ function commitTreadmillField({ ei, si, field, value }) {
 function onSubmit(event) {
   const form = event.target;
   if (!(form instanceof HTMLFormElement)) return;
-  if (!event.target.matches('[data-auth-form]')) return;
+  if (form.matches('[data-custom-food]')) {
+    event.preventDefault();
+    saveCustomFoodFromSheet();
+    return;
+  }
+  if (form.matches('[data-custom-exercise]')) {
+    event.preventDefault();
+    saveCustomExerciseFromSheet();
+    return;
+  }
+  if (!form.matches('[data-auth-form]')) return;
   event.preventDefault();
   const email = (val('auth-email') || ui.authEmail || '').trim();
   ui.authEmail = email;
